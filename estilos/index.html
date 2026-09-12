@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supleno Estilos — Em construção | Testes Supleno</title>
+<meta name="description" content="Supleno Estilos é uma prévia interativa, em construção, sobre como você tende a agir e se comunicar no dia a dia. Sem resultado, sem rótulos fechados.">
+<link rel="canonical" href="https://testes.supleno.com/estilos/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Testes Supleno">
+<meta property="og:title" content="Supleno Estilos — Em construção">
+<meta property="og:description" content="Prévia interativa, em construção, sobre como você tende a agir e se comunicar no dia a dia.">
+<meta property="og:url" content="https://testes.supleno.com/estilos/">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Supleno Estilos — Em construção">
+<meta name="twitter:description" content="Prévia interativa, em construção, sobre como você tende a agir e se comunicar no dia a dia.">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+<nav class="site-nav" aria-label="Navegação da família Testes Supleno">
+  <a class="nav-brand" href="../">
+    <strong>Testes Supleno</strong>
+    <span>Autoconhecimento e Desenvolvimento Humano</span>
+  </a>
+  <button type="button" class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navLinks" aria-label="Abrir menu">
+    <span class="bar"></span>
+  </button>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="../tipos/">Supleno Tipos</a></li>
+    <li><a href="../estilos/" aria-current="page">Supleno Estilos</a></li>
+    <li><a href="../tracos/">Supleno Traços</a></li>
+    <li><a href="../">Portal</a></li>
+  </ul>
+</nav>
+
+<div class="wrap">
+  <main id="conteudo" class="card">
+    <span class="badge soon">Em construção</span>
+    <h1 style="margin-top:12px;">Supleno Estilos</h1>
+    <p class="lead">Uma prévia interativa sobre como você tende a agir e se comunicar em diferentes situações do dia a dia.</p>
+    <p class="preview-note">Este é um protótipo educativo, ainda em construção. A página não grava respostas, não envia e-mail e não calcula um resultado ou tipo final — é só um espaço para observar suas próprias tendências.</p>
+
+    <div class="style-grid">
+      <div class="style-item">
+        <h3>Ritmo de decisão</h3>
+        <div class="style-toggle" role="group" aria-label="Ritmo de decisão">
+          <button type="button" data-target="s1" data-text="Você costuma decidir rápido e ajustar a rota pelo caminho, sem esperar ter todas as respostas antes de agir.">Decide rápido e ajusta pelo caminho</button>
+          <button type="button" data-target="s1" data-text="Você costuma reunir mais informação e ponderar com calma antes de decidir, preferindo reduzir incertezas primeiro.">Analisa com calma antes de decidir</button>
+        </div>
+        <p class="style-result" id="s1">Escolha uma opção para ver a reflexão.</p>
+      </div>
+
+      <div class="style-item">
+        <h3>Foco da comunicação</h3>
+        <div class="style-toggle" role="group" aria-label="Foco da comunicação">
+          <button type="button" data-target="s2" data-text="Você tende a ir direto ao ponto, priorizando clareza e objetividade na hora de se comunicar.">Vai direto ao ponto</button>
+          <button type="button" data-target="s2" data-text="Você tende a preparar o terreno antes de falar, cuidando do contexto e de como a mensagem será recebida.">Prepara o terreno antes de falar</button>
+        </div>
+        <p class="style-result" id="s2">Escolha uma opção para ver a reflexão.</p>
+      </div>
+
+      <div class="style-item">
+        <h3>Forma de organizar o trabalho</h3>
+        <div class="style-toggle" role="group" aria-label="Forma de organizar o trabalho">
+          <button type="button" data-target="s3" data-text="Você tende a preferir estrutura, listas e etapas bem definidas para se sentir no controle do trabalho.">Prefere estrutura e listas</button>
+          <button type="button" data-target="s3" data-text="Você tende a preferir fluidez e liberdade para reorganizar as prioridades conforme a situação muda.">Prefere fluidez e adaptação</button>
+        </div>
+        <p class="style-result" id="s3">Escolha uma opção para ver a reflexão.</p>
+      </div>
+
+      <div class="style-item">
+        <h3>Reação a mudanças de plano</h3>
+        <div class="style-toggle" role="group" aria-label="Reação a mudanças de plano">
+          <button type="button" data-target="s4" data-text="Você costuma se adaptar com facilidade quando um plano muda de última hora.">Se adapta com facilidade</button>
+          <button type="button" data-target="s4" data-text="Você costuma precisar de um tempo para se reorganizar quando um plano muda de última hora.">Precisa de um tempo para se reorganizar</button>
+        </div>
+        <p class="style-result" id="s4">Escolha uma opção para ver a reflexão.</p>
+      </div>
+    </div>
+
+    <div class="cta-box">
+      <p>Enquanto o Supleno Estilos não é lançado, você já pode fazer o Supleno Tipos.</p>
+      <a class="btn" href="../tipos/">Fazer o Supleno Tipos</a>
+    </div>
+  </main>
+
+  <footer class="bottom">&copy; <span id="year"></span> Supleno Estilos — conteúdo educativo em construção. Um produto da família Testes Supleno.</footer>
+</div>
+
+<script src="../assets/nav.js" defer></script>
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+document.querySelectorAll('.style-toggle').forEach(function (group) {
+  group.querySelectorAll('button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      group.querySelectorAll('button').forEach(function (b) { b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false'); });
+      btn.classList.add('selected');
+      btn.setAttribute('aria-pressed', 'true');
+      document.getElementById(btn.dataset.target).textContent = btn.dataset.text;
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supleno Traços — Em construção | Testes Supleno</title>
+<meta name="description" content="Supleno Traços é uma prévia interativa, em construção, para refletir sobre características pessoais que aparecem em diferentes contextos. Sem resultado, sem rótulos fechados.">
+<link rel="canonical" href="https://testes.supleno.com/tracos/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Testes Supleno">
+<meta property="og:title" content="Supleno Traços — Em construção">
+<meta property="og:description" content="Prévia interativa, em construção, para refletir sobre características pessoais que aparecem em diferentes contextos.">
+<meta property="og:url" content="https://testes.supleno.com/tracos/">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Supleno Traços — Em construção">
+<meta name="twitter:description" content="Prévia interativa, em construção, para refletir sobre características pessoais que aparecem em diferentes contextos.">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+<nav class="site-nav" aria-label="Navegação da família Testes Supleno">
+  <a class="nav-brand" href="../">
+    <strong>Testes Supleno</strong>
+    <span>Autoconhecimento e Desenvolvimento Humano</span>
+  </a>
+  <button type="button" class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navLinks" aria-label="Abrir menu">
+    <span class="bar"></span>
+  </button>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="../tipos/">Supleno Tipos</a></li>
+    <li><a href="../estilos/">Supleno Estilos</a></li>
+    <li><a href="../tracos/" aria-current="page">Supleno Traços</a></li>
+    <li><a href="../">Portal</a></li>
+  </ul>
+</nav>
+
+<div class="wrap">
+  <main id="conteudo" class="card">
+    <span class="badge soon">Em construção</span>
+    <h1 style="margin-top:12px;">Supleno Traços</h1>
+    <p class="lead">Uma prévia interativa para refletir sobre características pessoais que aparecem de forma consistente em diferentes contextos — trabalho, estudo e relações.</p>
+    <p class="preview-note">Este é um protótipo educativo, ainda em construção. Os controles abaixo são só para reflexão pessoal: nada é enviado, gravado ou transformado em resultado final.</p>
+
+    <div class="trait-list">
+      <div class="trait-item">
+        <label for="t1">Iniciativa <span class="trait-value" id="t1Value">no meio-termo</span></label>
+        <input type="range" id="t1" min="0" max="100" value="50" data-low="Prefere esperar o momento certo para agir" data-high="Prefere agir primeiro e ajustar depois">
+        <div class="trait-caption"><span>Espera o momento certo</span><span>Age primeiro</span></div>
+      </div>
+
+      <div class="trait-item">
+        <label for="t2">Constância <span class="trait-value" id="t2Value">no meio-termo</span></label>
+        <input type="range" id="t2" min="0" max="100" value="50" data-low="Varia bastante o ritmo conforme o interesse do momento" data-high="Mantém o mesmo ritmo mesmo quando o interesse diminui">
+        <div class="trait-caption"><span>Ritmo variável</span><span>Ritmo estável</span></div>
+      </div>
+
+      <div class="trait-item">
+        <label for="t3">Flexibilidade <span class="trait-value" id="t3Value">no meio-termo</span></label>
+        <input type="range" id="t3" min="0" max="100" value="50" data-low="Prefere manter rotinas e caminhos já conhecidos" data-high="Prefere experimentar caminhos novos, mesmo sem garantia">
+        <div class="trait-caption"><span>Prefere o conhecido</span><span>Prefere o novo</span></div>
+      </div>
+
+      <div class="trait-item">
+        <label for="t4">Atenção a detalhes <span class="trait-value" id="t4Value">no meio-termo</span></label>
+        <input type="range" id="t4" min="0" max="100" value="50" data-low="Foca primeiro no quadro geral, deixando os detalhes para depois" data-high="Foca primeiro nos detalhes antes de olhar para o quadro geral">
+        <div class="trait-caption"><span>Quadro geral primeiro</span><span>Detalhes primeiro</span></div>
+      </div>
+    </div>
+
+    <p class="style-result" id="tracosReflexao">Mova os controles acima para ver uma reflexão sobre cada característica.</p>
+
+    <div class="cta-box">
+      <p>Enquanto o Supleno Traços não é lançado, você já pode fazer o Supleno Tipos.</p>
+      <a class="btn" href="../tipos/">Fazer o Supleno Tipos</a>
+    </div>
+  </main>
+
+  <footer class="bottom">&copy; <span id="year"></span> Supleno Traços — conteúdo educativo em construção. Um produto da família Testes Supleno.</footer>
+</div>
+
+<script src="../assets/nav.js" defer></script>
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+
+document.querySelectorAll('.trait-item input[type="range"]').forEach(function (input) {
+  var valueLabel = document.getElementById(input.id + 'Value');
+  var reflexao = document.getElementById('tracosReflexao');
+  input.addEventListener('input', function () {
+    var v = Number(input.value);
+    var label = v < 40 ? 'mais para um lado' : v > 60 ? 'mais para o outro lado' : 'no meio-termo';
+    valueLabel.textContent = label;
+    reflexao.textContent = v > 50 ? input.dataset.high : v < 50 ? input.dataset.low : 'Você se vê um pouco dos dois lados, dependendo do contexto.';
+  });
+});
+</script>
+</body>
+</html>
