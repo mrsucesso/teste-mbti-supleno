@@ -36,14 +36,14 @@ const SHEET_NAME = "Leads MBTI";
 const FROM_NAME = "Supleno Tipos";
 
 // Link do botão final do e-mail
-const CTA_URL = "https://supleno.com"; // TODO: ajustar
+const CTA_URL = "https://supleno.com";
 
 // Base do site publicado (para montar o link da página completa no e-mail).
 // A partir da Fase 2, o teste vive em /tipos dentro do domínio da família
 // Testes Supleno — troque para "https://testes.supleno.com" quando o DNS
 // final estiver no ar; enquanto isso, aponte para a URL de protótipo do
 // GitHub Pages (ex.: "https://usuario.github.io/repositorio").
-const SITE_BASE_URL = "https://mrsucesso.github.io/teste-mbti-supleno"; // TODO: ajustar para o domínio final
+const SITE_BASE_URL = "https://testes.supleno.com";
 
 /* ============================================================
    ANTIABUSO — ver seção "Antiabuso" no README para o racional
@@ -55,7 +55,8 @@ const SITE_BASE_URL = "https://mrsucesso.github.io/teste-mbti-supleno"; // TODO:
 // Deixe em branco ("") para aceitar qualquer envio (modo aberto, usado em
 // homologação). Antes de ir para produção, defina o MESMO valor aqui e em
 // config.js (ver config.example.js) para reduzir abuso casual.
-const ACCESS_TOKEN = "";
+// Configure no Script Properties; nunca deixe um relay público em produção.
+const ACCESS_TOKEN = PropertiesService.getScriptProperties().getProperty("ACCESS_TOKEN") || "";
 
 // Limites explícitos de taxa (ver README > Antiabuso). Ajuste com cautela:
 // limites baixos demais bloqueiam envios legítimos de uma mesma família/rede.
@@ -367,6 +368,11 @@ function doPost(e) {
       return errorResponse();
     }
 
+    // Consentimento é uma regra do servidor, não uma promessa do frontend.
+    if (data.consentimento !== true) {
+      return errorResponse();
+    }
+
     // Honeypot: campo invisível no formulário que humanos nunca preenchem.
     // Bots que preenchem todos os campos automaticamente costumam cair aqui.
     // Respondemos "ok" para não sinalizar ao bot que foi filtrado.
@@ -376,7 +382,11 @@ function doPost(e) {
     }
 
     // Token de configuração não secreto — ver comentário em ACCESS_TOKEN.
-    if (ACCESS_TOKEN) {
+    if (!ACCESS_TOKEN) {
+      Logger.log("ACCESS_TOKEN ausente: rejeitando configuração insegura");
+      return errorResponse();
+    }
+    {
       const token = (data.token || "").toString();
       if (token !== ACCESS_TOKEN) {
         return errorResponse();
@@ -392,8 +402,21 @@ function doPost(e) {
       return errorResponse();
     }
 
+    const submissionId = (data.submission_id || "").toString().trim();
+    if (!submissionId || submissionId.length > 128) {
+      return errorResponse();
+    }
+    const idempotencyKey = "submission_" + Utilities.base64EncodeWebSafe(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, submissionId)
+    );
+    const props = PropertiesService.getScriptProperties();
+    if (props.getProperty(idempotencyKey)) {
+      return jsonResponse({ ok: true, duplicate: true });
+    }
+
     appendLead(validated.name, validated.email, validated.whatsapp, validated.sigla);
     sendResultEmail(validated.name, validated.email, validated.code, validated.gender);
+    props.setProperty(idempotencyKey, new Date().toISOString());
 
     return jsonResponse({ ok: true });
   } catch (err) {
@@ -568,6 +591,8 @@ function testeManual() {
         whatsapp: "",
         code: "INTJ",
         gender: "F",
+        consentimento: true,
+        submission_id: "teste-manual-" + Date.now(),
         website: "", // honeypot — deve ficar sempre vazio
         token: ACCESS_TOKEN // só é exigido se ACCESS_TOKEN estiver configurado
       })

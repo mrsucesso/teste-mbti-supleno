@@ -14,8 +14,13 @@ sandbox, é obrigatório fornecer um `adaptador_envio_real` explícito.
 from __future__ import annotations
 
 import json
+import hashlib
+import hmac
 import logging
+import os
 import re
+import secrets
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional
@@ -162,6 +167,7 @@ class FunilStore:
         adaptador_envio_real: Optional[Callable[[dict], None]] = None,
         cta_url: str = "https://supleno.com",
         optout_base_url: str = "https://testes.supleno.com",
+        optout_secret: Optional[str] = None,
     ) -> None:
         if not sandbox and adaptador_envio_real is None:
             raise ValueError(
@@ -173,6 +179,8 @@ class FunilStore:
         self.adaptador_envio_real = adaptador_envio_real
         self.cta_url = cta_url
         self.optout_base_url = optout_base_url
+        self.optout_secret = (optout_secret or secrets.token_urlsafe(32)).encode("utf-8")
+        self._lock = threading.RLock()
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._leads: dict[str, dict] = {}
@@ -252,8 +260,14 @@ class FunilStore:
     def listar_leads(self) -> list:
         return list(self._leads.values())
 
-    def registrar_opt_out(self, email: str) -> dict:
+    def gerar_optout_token(self, email: str) -> str:
+        normalizado = (email or "").strip().lower().encode("utf-8")
+        return hmac.new(self.optout_secret, normalizado, hashlib.sha256).hexdigest()
+
+    def registrar_opt_out(self, email: str, token: Optional[str] = None) -> dict:
         email_normalizado = (email or "").strip().lower()
+        if not email_normalizado or not token or not hmac.compare_digest(token, self.gerar_optout_token(email_normalizado)):
+            raise ValueError("token de opt-out inválido")
         self._opt_out_emails.add(email_normalizado)
 
         afetados = 0
@@ -287,7 +301,12 @@ class FunilStore:
             contexto = self._construir_contexto(lead)
             mensagem = render_template(estagio, contexto)
             if not self.sandbox:
-                self.adaptador_envio_real(mensagem)
+                self.adaptador_envio_real({
+                    "destinatario": lead["email"],
+                    "mensagem": mensagem,
+                    "submission_id": lead["submission_id"],
+                    "estagio": estagio,
+                })
 
             lead["estado_sequencia"] = _ESTADO_APOS_ESTAGIO[estagio]
             enviados.append({"submission_id": lead["submission_id"], "estagio": estagio})
@@ -324,11 +343,16 @@ class FunilStore:
             "produto": _NOME_PRODUTO.get(lead["teste"], lead["teste"]),
             "resultado_texto": resultado_texto,
             "cta_url": self.cta_url,
-            "optout_url": f"{self.optout_base_url}/{lead['teste']}/optout?email={quote(lead['email'])}",
+            "optout_url": f"{self.optout_base_url}/{lead['teste']}/optout?token={quote(self.gerar_optout_token(lead['email']))}",
         }
 
     def _persistir_tudo(self) -> None:
-        with self.path.open("w", encoding="utf-8") as arquivo:
-            for lead in self._leads.values():
-                arquivo.write(json.dumps(lead, ensure_ascii=False))
-                arquivo.write("\n")
+        with self._lock:
+            temporario = self.path.with_name(f".{self.path.name}.{os.getpid()}.tmp")
+            with temporario.open("w", encoding="utf-8") as arquivo:
+                for lead in self._leads.values():
+                    arquivo.write(json.dumps(lead, ensure_ascii=False))
+                    arquivo.write("\n")
+                arquivo.flush()
+                os.fsync(arquivo.fileno())
+            os.replace(temporario, self.path)

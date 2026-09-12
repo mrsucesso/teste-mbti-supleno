@@ -232,13 +232,14 @@ class TestAntiAbuse(unittest.TestCase):
         self.assertLess(honeypot_pos, append_pos, "honeypot deve curto-circuitar antes de gravar o lead")
 
     def test_config_token_is_not_a_real_secret_by_default(self):
-        # O token por padrão é vazio (modo aberto) nos dois lados.
-        self.assertRegex(CODE_GS_TEXT, r'const ACCESS_TOKEN = "";')
+        # O token é lido de configuração privada do Apps Script; o exemplo
+        # público continua vazio e nunca contém credencial.
+        self.assertIn('getProperty("ACCESS_TOKEN")', CODE_GS_TEXT)
         self.assertRegex(CONFIG_EXAMPLE.read_text(encoding="utf-8"), r'CONFIG_TOKEN:\s*""')
 
     def test_backend_validates_token_only_when_configured(self):
         do_post_body = extract_function_body(CODE_GS_TEXT, "doPost")
-        self.assertIn("if (ACCESS_TOKEN) {", do_post_body)
+        self.assertIn("if (!ACCESS_TOKEN)", do_post_body)
         self.assertIn("token !== ACCESS_TOKEN", do_post_body)
 
     def test_rate_limit_constants_and_function_exist(self):
@@ -354,7 +355,7 @@ class TestNoSecrets(unittest.TestCase):
         self.assertEqual(offenders, [], f"possíveis segredos encontrados: {offenders}")
 
     def test_access_token_defaults_empty_in_tracked_code_gs(self):
-        self.assertIn('const ACCESS_TOKEN = "";', CODE_GS_TEXT)
+        self.assertIn('getProperty("ACCESS_TOKEN")', CODE_GS_TEXT)
 
     def test_no_committed_config_js_with_secrets(self):
         self.assertNotIn("config.js", git_ls_files())

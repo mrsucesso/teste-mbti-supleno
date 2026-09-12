@@ -29,6 +29,7 @@ import logging
 import re
 import tempfile
 import unittest
+from unittest.mock import Mock
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -82,6 +83,16 @@ class TestSandboxObrigatorio(unittest.TestCase):
                 return None
             store = FunilStore(Path(tmp) / "leads.jsonl", sandbox=False, adaptador_envio_real=adaptador_falso)
             self.assertFalse(store.sandbox)
+
+    def test_real_adapter_receives_recipient_and_message(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = Mock()
+            store = FunilStore(Path(tmp) / "leads.jsonl", sandbox=False, adaptador_envio_real=adapter)
+            agora = datetime(2026, 9, 1, 9, tzinfo=timezone.utc)
+            store.registrar_lead(payload_base(), agora=agora)
+            store.processar_fila(agora=agora)
+            adapter.assert_called_once()
+            self.assertEqual(adapter.call_args.args[0]["destinatario"], "maria@example.com")
 
 
 class TestCamposObrigatorios(unittest.TestCase):
@@ -225,7 +236,7 @@ class TestOptOut(unittest.TestCase):
 
     def test_opt_out_marks_existing_leads(self):
         self.store.registrar_lead(payload_base(submission_id="sub-optout", email="sai@example.com"))
-        resultado = self.store.registrar_opt_out("sai@example.com")
+        resultado = self.store.registrar_opt_out("sai@example.com", self.store.gerar_optout_token("sai@example.com"))
         self.assertTrue(resultado["ok"])
         self.assertEqual(resultado["afetados"], 1)
         lead = self.store.obter_lead("sub-optout")
@@ -235,20 +246,33 @@ class TestOptOut(unittest.TestCase):
     def test_esta_opt_out_reflects_state(self):
         self.assertFalse(self.store.esta_opt_out("nunca@example.com"))
         self.store.registrar_lead(payload_base(submission_id="sub-optout-2", email="nunca@example.com"))
-        self.store.registrar_opt_out("nunca@example.com")
+        self.store.registrar_opt_out("nunca@example.com", self.store.gerar_optout_token("nunca@example.com"))
         self.assertTrue(self.store.esta_opt_out("nunca@example.com"))
 
     def test_opted_out_lead_does_not_advance_in_queue(self):
         agora = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
         self.store.registrar_lead(payload_base(submission_id="sub-optout-3", email="parou@example.com"), agora=agora)
-        self.store.registrar_opt_out("parou@example.com")
+        self.store.registrar_opt_out("parou@example.com", self.store.gerar_optout_token("parou@example.com"))
         enviados = self.store.processar_fila(agora=agora + timedelta(days=10))
         self.assertEqual([e for e in enviados if e["submission_id"] == "sub-optout-3"], [])
 
     def test_opt_out_on_unknown_email_is_a_no_op(self):
-        resultado = self.store.registrar_opt_out("desconhecido@example.com")
+        resultado = self.store.registrar_opt_out("desconhecido@example.com", self.store.gerar_optout_token("desconhecido@example.com"))
         self.assertTrue(resultado["ok"])
         self.assertEqual(resultado["afetados"], 0)
+
+    def test_opt_out_rejects_missing_or_invalid_signed_token(self):
+        self.store.registrar_lead(payload_base(submission_id="sub-token"))
+        with self.assertRaises(ValueError):
+            self.store.registrar_opt_out("maria@example.com")
+        with self.assertRaises(ValueError):
+            self.store.registrar_opt_out("maria@example.com", "token-invalido")
+
+    def test_opt_out_url_contains_token_but_not_email(self):
+        self.store.registrar_lead(payload_base(submission_id="sub-url"))
+        contexto = self.store._construir_contexto(self.store.obter_lead("sub-url"))
+        self.assertNotIn("maria@example.com", contexto["optout_url"])
+        self.assertIn("token=", contexto["optout_url"])
 
 
 class TestFilaDeSequencia(unittest.TestCase):
@@ -294,7 +318,7 @@ class TestFilaDeSequencia(unittest.TestCase):
         self.assertEqual([e for e in enviados if e["submission_id"] == "sub-seq"], [])
 
     def test_lead_without_consent_never_enters_queue(self):
-        self.store.registrar_opt_out("maria@example.com")  # limpa estado anterior
+        self.store.registrar_opt_out("maria@example.com", self.store.gerar_optout_token("maria@example.com"))  # limpa estado anterior
         with self.assertRaises(ValueError):
             self.store.registrar_lead(payload_base(submission_id="sub-sem-consentimento", consentimento=False))
 
@@ -317,7 +341,7 @@ class TestTemplates(unittest.TestCase):
             "produto": "Supleno Tipos",
             "resultado_texto": "INTJ-F, A Planejadora Estratégica",
             "cta_url": "https://supleno.com",
-            "optout_url": "https://testes.supleno.com/optout?email=ana%40example.com",
+            "optout_url": "https://testes.supleno.com/optout?token=token-sintetico",
         })
         self.assertIn("Ana", rendered["assunto"] + rendered["corpo"])
         self.assertIn("Supleno Tipos", rendered["corpo"])
@@ -349,10 +373,10 @@ class TestMascaramentoDeLogs(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_mask_email_hides_local_part(self):
-        masked = mask_email("mauricio@sucesso.com.br")
-        self.assertNotEqual(masked, "mauricio@sucesso.com.br")
-        self.assertTrue(masked.endswith("@sucesso.com.br"))
-        self.assertNotIn("mauricio", masked)
+        masked = mask_email("mauricio.teste@example.com")
+        self.assertNotEqual(masked, "mauricio.teste@example.com")
+        self.assertTrue(masked.endswith("@example.com"))
+        self.assertNotIn("mauricio.teste", masked)
 
     def test_mask_email_handles_short_local_part(self):
         masked = mask_email("a@example.com")
