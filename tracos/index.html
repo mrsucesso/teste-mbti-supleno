@@ -126,7 +126,7 @@
           <button type="submit" class="btn secondary" id="leadSubmitBtn">Enviar por e-mail</button>
           <p class="privacy-note">Seus dados não são compartilhados com terceiros.</p>
         </form>
-        <p class="privacy-note" id="leadSentMsg" style="display:none;">Recebido! Você pode continuar vendo seu resultado acima.</p>
+        <p class="privacy-note" id="leadSentMsg" style="display:none;"></p>
       </div>
 
       <button class="btn" style="margin-top:12px;" onclick="restartQuiz()">Refazer o Teste</button>
@@ -433,9 +433,13 @@ function validateLeadForm(){
   return { name, email, whatsapp };
 }
 
-function showLeadSent(){
+function showLeadSent(transmitted){
   document.getElementById('leadForm').style.display = 'none';
-  document.getElementById('leadSentMsg').style.display = 'block';
+  const message = document.getElementById('leadSentMsg');
+  message.textContent = transmitted
+    ? 'Resultado exibido. A captura foi transmitida para processamento.'
+    : 'Resultado exibido. A captura não foi transmitida (modo sandbox).';
+  message.style.display = 'block';
 }
 
 function submitLead(e){
@@ -470,7 +474,7 @@ function submitLead(e){
   }
   // if(WEBHOOK_URL) só pode prosseguir fora do sandbox explícito.
   const btn = document.getElementById('leadSubmitBtn');
-  btn.disabled = true; btn.textContent = 'Enviando...';
+  btn.disabled = true; btn.textContent = 'Abrindo resultado...';
   if(WEBHOOK_URL && !SANDBOX_MODE){
     // Melhor esforço: validamos a resposta só para diagnóstico (console),
     // mas nunca alteramos o que já está na tela — o resultado já apareceu
@@ -490,11 +494,12 @@ function submitLead(e){
         if(data && data.ok !== true){
           console.warn('Webhook processou a requisição, mas retornou falha:', data.error || data);
         }
+        return data;
       })
-      .catch(err => console.warn('Falha ao contatar o webhook (best-effort):', err))
-      .finally(()=> showLeadSent());
+      .then(data => showLeadSent(Boolean(data && data.ok === true)))
+      .catch(err => { console.warn('Falha ao contatar o webhook:', err); showLeadSent(false); });
   } else {
-    showLeadSent();
+    showLeadSent(false);
   }
 }
 

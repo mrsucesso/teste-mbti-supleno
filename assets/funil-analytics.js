@@ -24,7 +24,8 @@
       enabled: cfg.ENABLED === true,
       ga4Id: typeof cfg.GA4_ID === 'string' ? cfg.GA4_ID.trim() : '',
       metaPixelId: typeof cfg.META_PIXEL_ID === 'string' ? cfg.META_PIXEL_ID.trim() : '',
-      requireConsent: cfg.REQUIRE_CONSENT !== false
+      // Consentimento é obrigatório e não pode ser relaxado por configuração.
+      requireConsent: true
     };
   }
 

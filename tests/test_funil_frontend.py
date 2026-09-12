@@ -37,5 +37,41 @@ class TestFunilFrontend(unittest.TestCase):
             self.assertRegex(text, r"SANDBOX_MODE\s*=\s*SUPLENO_CONFIG\.SANDBOX_MODE\s*!==\s*false", page.name)
 
 
+def _extract_function(text, name):
+    start = text.index(f"function {name}(")
+    end = text.index("\nfunction ", start + 1)
+    return text[start:end]
+
+
+class TestSandboxNuncaAlegaEnvio(unittest.TestCase):
+    """Em sandbox (padrão), nenhuma tela ou mensagem pode alegar que a
+    captura foi enviada/recebida por um servidor — nada é transmitido."""
+
+    def test_submit_button_label_depends_on_actual_transmission(self):
+        for page in PAGES:
+            text = page.read_text(encoding="utf-8")
+            submit_src = _extract_function(text, "submitLead")
+            self.assertNotRegex(
+                submit_src,
+                r"textContent\s*=\s*'Enviando\.\.\.'\s*;",
+                f"{page.name}: rótulo do botão não pode alegar envio incondicionalmente",
+            )
+            self.assertIn("WEBHOOK_URL && !SANDBOX_MODE", submit_src, page.name)
+
+    def test_lead_sent_message_is_honest_about_sandbox(self):
+        for page in (ROOT / "estilos/index.html", ROOT / "tracos/index.html"):
+            text = page.read_text(encoding="utf-8")
+            show_sent_src = _extract_function(text, "showLeadSent")
+            self.assertRegex(show_sent_src, r"function showLeadSent\(\s*transmitted\s*\)", page.name)
+            self.assertIn("não foi transmitid", show_sent_src.lower(), page.name)
+
+    def test_tipos_shows_honest_outcome_message(self):
+        text = (ROOT / "tipos/index.html").read_text(encoding="utf-8")
+        self.assertIn('id="leadOutcomeMsg"', text)
+        show_outcome_src = _extract_function(text, "showLeadOutcome")
+        self.assertRegex(show_outcome_src, r"function showLeadOutcome\(\s*transmitted\s*\)")
+        self.assertIn("não foi transmitid", show_outcome_src.lower())
+
+
 if __name__ == "__main__":
     unittest.main()

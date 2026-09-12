@@ -28,6 +28,8 @@ CODE_GS = ROOT / "apps-script" / "Code.gs"
 RESULTS = ROOT / "tipos" / "resultados"
 GITIGNORE = ROOT / ".gitignore"
 CONFIG_EXAMPLE = ROOT / "tipos" / "config.example.js"
+VALIDATE_WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
+ANALYTICS = ROOT / "assets" / "funil-analytics.js"
 
 INDEX_TEXT = INDEX.read_text(encoding="utf-8")
 CODE_GS_TEXT = CODE_GS.read_text(encoding="utf-8")
@@ -359,6 +361,24 @@ class TestNoSecrets(unittest.TestCase):
 
     def test_no_committed_config_js_with_secrets(self):
         self.assertNotIn("config.js", git_ls_files())
+
+
+class TestContinuousIntegration(unittest.TestCase):
+    """O CI precisa validar o intervalo do push/PR, não o checkout limpo."""
+
+    def test_diff_check_uses_event_range_with_full_history(self):
+        workflow = VALIDATE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("fetch-depth: 0", workflow)
+        self.assertIn("github.event.pull_request.base.sha", workflow)
+        self.assertIn("github.event.before", workflow)
+        self.assertNotIn("run: git diff --check\n", workflow)
+
+
+class TestConsentimentoObrigatorio(unittest.TestCase):
+    def test_analytics_consent_cannot_be_disabled_by_configuration(self):
+        analytics = ANALYTICS.read_text(encoding="utf-8")
+        self.assertIn("requireConsent: true", analytics)
+        self.assertNotIn("REQUIRE_CONSENT !== false", analytics)
 
 
 # ---------------------------------------------------------------------------
