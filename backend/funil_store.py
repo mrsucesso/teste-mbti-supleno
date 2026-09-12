@@ -21,6 +21,7 @@ import os
 import re
 import secrets
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional
@@ -185,16 +186,35 @@ class FunilStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._leads: dict[str, dict] = {}
         self._opt_out_emails: set[str] = set()
-        if self.path.exists():
-            with self.path.open("r", encoding="utf-8") as arquivo:
-                for linha in arquivo:
-                    linha = linha.strip()
-                    if not linha:
-                        continue
-                    lead = json.loads(linha)
-                    self._leads[lead["submission_id"]] = lead
-                    if lead.get("opt_out"):
-                        self._opt_out_emails.add(lead["email"].strip().lower())
+        self._carregar()
+
+    def _carregar(self) -> None:
+        self._leads = {}
+        self._opt_out_emails = set()
+        if not self.path.exists():
+            return
+        with self.path.open("r", encoding="utf-8") as arquivo:
+            for linha in arquivo:
+                linha = linha.strip()
+                if not linha:
+                    continue
+                lead = json.loads(linha)
+                self._leads[lead["submission_id"]] = lead
+                if lead.get("opt_out"):
+                    self._opt_out_emails.add(lead["email"].strip().lower())
+
+    @contextmanager
+    def _lock_processo(self):
+        """Exclusão mútua entre processos para ler-modificar-gravar."""
+        lock_path = self.path.with_name(f".{self.path.name}.lock")
+        lock_path.touch(exist_ok=True)
+        with lock_path.open("r+", encoding="utf-8") as lock_file:
+            import fcntl
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def registrar_lead(self, payload: dict, agora: Optional[datetime] = None) -> dict:
         agora = agora or datetime.now(timezone.utc)
@@ -221,33 +241,22 @@ class FunilStore:
             dia = agora.date().isoformat()
             submission_id = f"auto:{teste}:{email.lower()}:{dia}"
 
-        existente = self._leads.get(submission_id)
-        if existente is not None:
-            logger.info(
-                "lead duplicado ignorado: teste=%s email=%s submission_id=%s",
-                teste, mask_email(email), submission_id,
-            )
-            return {"ok": True, "duplicado": True, "submission_id": submission_id}
-
-        lead = {
-            "submission_id": submission_id,
-            "teste": teste,
-            "nome": nome,
-            "email": email,
-            "whatsapp": whatsapp,
-            "consentimento": True,
-            "resultado": payload.get("resultado") or {},
-            "pontuacoes": payload.get("pontuacoes") or {},
-            "utm_source": payload.get("utm_source") or "",
-            "utm_medium": payload.get("utm_medium") or "",
-            "utm_campaign": payload.get("utm_campaign") or "",
-            "origem": payload.get("origem") or "",
-            "data_criacao": agora.isoformat(),
-            "estado_sequencia": "pendente",
-            "opt_out": False,
-        }
-        self._leads[submission_id] = lead
-        self._persistir_tudo()
+        with self._lock, self._lock_processo():
+            self._carregar()
+            existente = self._leads.get(submission_id)
+            if existente is not None:
+                logger.info("lead duplicado ignorado: teste=%s email=%s submission_id=%s", teste, mask_email(email), submission_id)
+                return {"ok": True, "duplicado": True, "submission_id": submission_id}
+            lead = {
+                "submission_id": submission_id, "teste": teste, "nome": nome,
+                "email": email, "whatsapp": whatsapp, "consentimento": True,
+                "resultado": payload.get("resultado") or {}, "pontuacoes": payload.get("pontuacoes") or {},
+                "utm_source": payload.get("utm_source") or "", "utm_medium": payload.get("utm_medium") or "",
+                "utm_campaign": payload.get("utm_campaign") or "", "origem": payload.get("origem") or "",
+                "data_criacao": agora.isoformat(), "estado_sequencia": "pendente", "opt_out": False,
+            }
+            self._leads[submission_id] = lead
+            self._persistir_tudo_locked()
         logger.info(
             "lead registrado: teste=%s email=%s submission_id=%s",
             teste, mask_email(email), submission_id,
@@ -268,17 +277,17 @@ class FunilStore:
         email_normalizado = (email or "").strip().lower()
         if not email_normalizado or not token or not hmac.compare_digest(token, self.gerar_optout_token(email_normalizado)):
             raise ValueError("token de opt-out inválido")
-        self._opt_out_emails.add(email_normalizado)
-
-        afetados = 0
-        for lead in self._leads.values():
-            if lead["email"].strip().lower() == email_normalizado and not lead["opt_out"]:
-                lead["opt_out"] = True
-                lead["estado_sequencia"] = "opt_out"
-                afetados += 1
-
-        if afetados:
-            self._persistir_tudo()
+        with self._lock, self._lock_processo():
+            self._carregar()
+            self._opt_out_emails.add(email_normalizado)
+            afetados = 0
+            for lead in self._leads.values():
+                if lead["email"].strip().lower() == email_normalizado and not lead["opt_out"]:
+                    lead["opt_out"] = True
+                    lead["estado_sequencia"] = "opt_out"
+                    afetados += 1
+            if afetados:
+                self._persistir_tudo_locked()
         logger.info("opt-out registrado: email=%s afetados=%d", mask_email(email), afetados)
         return {"ok": True, "afetados": afetados}
 
@@ -291,32 +300,34 @@ class FunilStore:
         ainda pendente e já vencido."""
         agora = agora or datetime.now(timezone.utc)
         enviados = []
-        for lead in self._leads.values():
-            if lead["opt_out"]:
-                continue
-            estagio = self._proximo_estagio_devido(lead, agora)
-            if estagio is None:
-                continue
+        with self._lock, self._lock_processo():
+            self._carregar()
+            for lead in self._leads.values():
+                if lead["opt_out"]:
+                    continue
+                estagio = self._proximo_estagio_devido(lead, agora)
+                if estagio is None:
+                    continue
 
-            contexto = self._construir_contexto(lead)
-            mensagem = render_template(estagio, contexto)
-            if not self.sandbox:
-                self.adaptador_envio_real({
-                    "destinatario": lead["email"],
-                    "mensagem": mensagem,
-                    "submission_id": lead["submission_id"],
-                    "estagio": estagio,
-                })
+                contexto = self._construir_contexto(lead)
+                mensagem = render_template(estagio, contexto)
+                if not self.sandbox:
+                    self.adaptador_envio_real({
+                        "destinatario": lead["email"],
+                        "mensagem": mensagem,
+                        "submission_id": lead["submission_id"],
+                        "estagio": estagio,
+                    })
 
-            lead["estado_sequencia"] = _ESTADO_APOS_ESTAGIO[estagio]
-            enviados.append({"submission_id": lead["submission_id"], "estagio": estagio})
-            logger.info(
-                "estágio enviado (sandbox=%s): teste=%s estagio=%s email=%s",
-                self.sandbox, lead["teste"], estagio, mask_email(lead["email"]),
-            )
+                lead["estado_sequencia"] = _ESTADO_APOS_ESTAGIO[estagio]
+                enviados.append({"submission_id": lead["submission_id"], "estagio": estagio})
+                logger.info(
+                    "estágio enviado (sandbox=%s): teste=%s estagio=%s email=%s",
+                    self.sandbox, lead["teste"], estagio, mask_email(lead["email"]),
+                )
 
-        if enviados:
-            self._persistir_tudo()
+            if enviados:
+                self._persistir_tudo_locked()
         return enviados
 
     def _proximo_estagio_devido(self, lead: dict, agora: datetime) -> Optional[str]:
@@ -348,11 +359,15 @@ class FunilStore:
 
     def _persistir_tudo(self) -> None:
         with self._lock:
-            temporario = self.path.with_name(f".{self.path.name}.{os.getpid()}.tmp")
-            with temporario.open("w", encoding="utf-8") as arquivo:
-                for lead in self._leads.values():
-                    arquivo.write(json.dumps(lead, ensure_ascii=False))
-                    arquivo.write("\n")
-                arquivo.flush()
-                os.fsync(arquivo.fileno())
-            os.replace(temporario, self.path)
+            with self._lock_processo():
+                self._persistir_tudo_locked()
+
+    def _persistir_tudo_locked(self) -> None:
+        temporario = self.path.with_name(f".{self.path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+        with temporario.open("w", encoding="utf-8") as arquivo:
+            for lead in self._leads.values():
+                arquivo.write(json.dumps(lead, ensure_ascii=False))
+                arquivo.write("\n")
+            arquivo.flush()
+            os.fsync(arquivo.fileno())
+        os.replace(temporario, self.path)

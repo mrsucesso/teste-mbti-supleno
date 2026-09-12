@@ -25,7 +25,9 @@ Regras cobertas:
 """
 from __future__ import annotations
 
+import json
 import logging
+import multiprocessing
 import re
 import tempfile
 import unittest
@@ -61,6 +63,11 @@ def payload_base(**overrides):
     }
     base.update(overrides)
     return base
+
+
+def _registrar_em_processo(path, submission_id, inicio):
+    store = FunilStore(Path(path))
+    store.registrar_lead(payload_base(submission_id=submission_id), agora=inicio)
 
 
 class TestSandboxObrigatorio(unittest.TestCase):
@@ -203,6 +210,23 @@ class TestIdempotencia(unittest.TestCase):
         primeiro = self.store.registrar_lead(payload)
         segundo = self.store.registrar_lead(payload)
         self.assertEqual(primeiro["submission_id"], segundo["submission_id"])
+
+    def test_same_submission_id_is_idempotent_across_processes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            inicio = datetime(2026, 9, 10, 12, 0, tzinfo=timezone.utc)
+            processos = [multiprocessing.Process(
+                target=_registrar_em_processo,
+                args=(str(path), "sub-concorrente", inicio),
+            ) for _ in range(8)]
+            for processo in processos:
+                processo.start()
+            for processo in processos:
+                processo.join(10)
+                self.assertEqual(processo.exitcode, 0)
+            linhas = [linha for linha in path.read_text(encoding="utf-8").splitlines() if linha]
+            self.assertEqual(len(linhas), 1)
+            self.assertEqual(json.loads(linhas[0])["submission_id"], "sub-concorrente")
 
     def test_retry_without_submission_id_within_window_deduplicates(self):
         agora = datetime(2026, 9, 10, 12, 0, 0, tzinfo=timezone.utc)
