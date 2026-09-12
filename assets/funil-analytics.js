@@ -45,7 +45,7 @@
     if (!config.enabled) return false;
     if (!idsConfirmed(config)) return false;
     if (hasDoNotTrack()) return false;
-    if (requiresConsent && config.requireConsent && !consentGranted) return false;
+    if (config.requireConsent && !consentGranted) return false;
     return true;
   }
 
@@ -93,19 +93,19 @@
   var SuplenoFunil = {
     // Início do teste (primeira pergunta exibida).
     trackInicio: function (produto, extra) {
-      return dispatch('funil_inicio', Object.assign({ produto: produto }, extra));
+      return dispatch('funil_inicio', Object.assign({ produto: produto }, extra), true, arguments[2]);
     },
     // Progresso ao longo do quiz (a cada pergunta respondida).
     trackProgresso: function (produto, extra) {
-      return dispatch('funil_progresso', Object.assign({ produto: produto }, extra));
+      return dispatch('funil_progresso', Object.assign({ produto: produto }, extra), true, arguments[2]);
     },
     // Quiz respondido por completo, antes do resultado ser calculado/exibido.
     trackConclusao: function (produto, extra) {
-      return dispatch('funil_conclusao', Object.assign({ produto: produto }, extra));
+      return dispatch('funil_conclusao', Object.assign({ produto: produto }, extra), true, arguments[2]);
     },
     // Tela de resultado efetivamente exibida ao usuário.
     trackResultado: function (produto, extra) {
-      return dispatch('funil_resultado', Object.assign({ produto: produto }, extra));
+      return dispatch('funil_resultado', Object.assign({ produto: produto }, extra), true, arguments[2]);
     },
     // Envio do formulário opcional de captura — evento com dado pessoal:
     // exige consentGranted=true (checkbox de consentimento) para disparar
@@ -115,7 +115,7 @@
     },
     // Clique em CTA (link para o Supleno, página completa de resultado etc.).
     trackCTA: function (produto, extra) {
-      return dispatch('funil_cta', Object.assign({ produto: produto }, extra));
+      return dispatch('funil_cta', Object.assign({ produto: produto }, extra), true, arguments[2]);
     },
     // Uso interno/testes: nunca é enviado a lugar nenhum.
     _getEventLog: function () { return eventLog.slice(); },

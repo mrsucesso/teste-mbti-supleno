@@ -99,10 +99,11 @@ Contrato validado por `tests/test_funil_backend.py`:
 - **Sequência imediato/D1/D3/D5/D7:** `processar_fila()` envia (de forma
   simulada, em sandbox) no máximo um estágio vencido por lead a cada
   chamada, na ordem correta, e nunca reenvia um estágio já processado.
-- **Opt-out:** `registrar_opt_out(email)` marca os leads existentes e
-  interrompe a sequência; `esta_opt_out(email)` consulta o estado. Todo
-  template em `TEMPLATES` inclui `{optout_url}`.
-- **Sandbox obrigatório:** `SANDBOX_MODE = True` por padrão. Sem um
+- **Opt-out:** `registrar_opt_out(email, token)` exige token HMAC assinado e
+  marca os leads existentes; `esta_opt_out(email)` consulta o estado. Todo
+  template em `TEMPLATES` inclui `{optout_url}` sem expor o e-mail na URL.
+- **Sandbox obrigatório:** `SANDBOX_MODE = True` por padrão. A saída real só
+  pode ser habilitada explicitamente por configuração. Sem um
   `adaptador_envio_real` explícito, `FunilStore(sandbox=False, ...)`
   recusa a inicialização — não há envio real implícito.
 - **Logs sem PII:** `mask_email()` mascara o e-mail em todo log; nome e

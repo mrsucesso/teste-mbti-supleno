@@ -84,14 +84,14 @@
         <div class="result-name" id="resName"></div>
       </div>
       <p class="result-desc" id="resDesc"></p>
-      <p class="privacy-note" style="text-align:center; margin-bottom:18px;">📩 Enviamos o resultado completo — pontos fortes e caminhos de desenvolvimento — para o seu e-mail.</p>
+      <p class="privacy-note" style="text-align:center; margin-bottom:18px;">📩 Se você autorizar a captura abaixo, enviaremos o resultado completo — pontos fortes e caminhos de desenvolvimento — para o seu e-mail.</p>
       <a class="btn secondary" id="resFullLink" href="#" target="_blank" rel="noopener noreferrer">Ver Página Completa do Perfil</a>
       <button class="btn" style="margin-top:12px;" onclick="restartQuiz()">Refazer o Teste</button>
 
     <!-- CAPTURA OPCIONAL APÓS O RESULTADO -->
       <div class="result-block" id="captureBlock">
       <h2>Quase lá!</h2>
-      <p class="lead">Seu resultado está pronto. Informe seus dados para revelar seu perfil.</p>
+      <p class="lead">Seu resultado está pronto. Se quiser receber a versão completa, informe seus dados e autorize o envio.</p>
       <form class="lead-form" id="leadForm" onsubmit="submitLead(event)" novalidate>
         <div class="field">
           <label for="leadName">Nome</label>
@@ -148,7 +148,7 @@ const SUPLENO_CONFIG = window.SUPLENO_CONFIG || {};
 const CTA_URL = SUPLENO_CONFIG.CTA_URL || "https://supleno.com";
 const WEBHOOK_URL = SUPLENO_CONFIG.WEBHOOK_URL || ""; // vazio = formulário não envia (modo seguro/local)
 const CONFIG_TOKEN = SUPLENO_CONFIG.CONFIG_TOKEN || "";
-const SANDBOX_MODE = true;
+const SANDBOX_MODE = SUPLENO_CONFIG.SANDBOX_MODE !== false;
 const ATTRIBUTION = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''); // utm_source, utm_medium, utm_campaign e origem // não secreto, ver README > Antiabuso
 
 /* ================= DADOS ================= */
@@ -181,7 +181,10 @@ function shuffle(arr){
 
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  const next = document.getElementById(id);
+  next.classList.add('active');
+  next.setAttribute('tabindex', '-1');
+  next.focus({preventScroll:true});
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
@@ -208,7 +211,7 @@ function renderQuestion(){
   });
   document.getElementById('progressLabel').textContent = `Pergunta ${current+1} de ${QUESTIONS.length}`;
   document.getElementById('progressFill').style.width = `${(current/QUESTIONS.length)*100}%`;
-  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(current));
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(current + 1));
   document.getElementById('backBtn').style.visibility = current===0 ? 'hidden' : 'visible';
 }
 
@@ -307,9 +310,6 @@ function submitLead(e){
   const { name, email, whats } = fields;
   const code = computeType();
   const sigla = `${code}-${gender}`;
-  const btn = document.getElementById('leadSubmitBtn');
-  btn.disabled = true; btn.textContent = 'Enviando...';
-
   const payload = {
     name, email, whatsapp: whats, consentimento: true, teste: 'tipos', resultado: { code, gender }, pontuacoes: scores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: document.referrer || '', code, gender, sigla,
     website: honeypot, token: CONFIG_TOKEN,
@@ -322,6 +322,8 @@ function submitLead(e){
     consent.focus();
     return;
   }
+  const btn = document.getElementById('leadSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Enviando...';
   if(WEBHOOK_URL && !SANDBOX_MODE){
     // Melhor esforço: validamos a resposta só para diagnóstico (console),
     // mas nunca bloqueamos a experiência do usuário por causa dela — o

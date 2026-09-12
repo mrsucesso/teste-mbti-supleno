@@ -26,6 +26,7 @@ window.SUPLENO_CONFIG = {
   CTA_URL: "https://supleno.com",
   WEBHOOK_URL: "",
   CONFIG_TOKEN: "",
+  SANDBOX_MODE: true,
   // Métricas ficam desligadas até IDs e consentimento serem confirmados.
   ANALYTICS: { ENABLED: false, GA4_ID: "", META_PIXEL_ID: "", REQUIRE_CONSENT: true }
 };

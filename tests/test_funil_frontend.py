@@ -34,7 +34,7 @@ class TestFunilFrontend(unittest.TestCase):
         for page in PAGES:
             text = page.read_text(encoding="utf-8")
             self.assertIn("SANDBOX_MODE", text, page.name)
-            self.assertRegex(text, r"SANDBOX_MODE\s*=\s*true", page.name)
+            self.assertRegex(text, r"SANDBOX_MODE\s*=\s*SUPLENO_CONFIG\.SANDBOX_MODE\s*!==\s*false", page.name)
 
 
 if __name__ == "__main__":
