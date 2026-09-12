@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Supleno Estilos — Em construção | Testes Supleno</title>
-<meta name="description" content="Supleno Estilos é uma prévia interativa, em construção, sobre como você tende a agir e se comunicar no dia a dia. Sem resultado, sem rótulos fechados.">
+<title>Supleno Estilos — Teste de Estilo de Comportamento | Testes Supleno</title>
+<meta name="description" content="Descubra seu estilo de comportamento predominante entre 4 perfis do Supleno Estilos, a partir de 24 perguntas. Resultado imediato, sem necessidade de cadastro.">
 <link rel="canonical" href="https://testes.supleno.com/estilos/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Testes Supleno">
-<meta property="og:title" content="Supleno Estilos — Em construção">
-<meta property="og:description" content="Prévia interativa, em construção, sobre como você tende a agir e se comunicar no dia a dia.">
+<meta property="og:title" content="Supleno Estilos — Teste de Estilo de Comportamento">
+<meta property="og:description" content="Descubra seu estilo de comportamento predominante entre 4 perfis do Supleno Estilos, a partir de 24 perguntas.">
 <meta property="og:url" content="https://testes.supleno.com/estilos/">
 <meta property="og:locale" content="pt_BR">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Supleno Estilos — Em construção">
-<meta name="twitter:description" content="Prévia interativa, em construção, sobre como você tende a agir e se comunicar no dia a dia.">
+<meta name="twitter:title" content="Supleno Estilos — Teste de Estilo de Comportamento">
+<meta name="twitter:description" content="Descubra seu estilo de comportamento predominante entre 4 perfis do Supleno Estilos.">
 <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
@@ -34,74 +34,405 @@
     <li><a href="../">Portal</a></li>
   </ul>
 </nav>
-
 <div class="wrap">
+  <header class="top">
+    <div class="brand">Supleno Estilos</div>
+    <div class="brand-sub">Autoconhecimento e Desenvolvimento Humano</div>
+  </header>
+
   <main id="conteudo" class="card">
-    <span class="badge soon">Em construção</span>
-    <h1 style="margin-top:12px;">Supleno Estilos</h1>
-    <p class="lead">Uma prévia interativa sobre como você tende a agir e se comunicar em diferentes situações do dia a dia.</p>
-    <p class="preview-note">Este é um protótipo educativo, ainda em construção. A página não grava respostas, não envia e-mail e não calcula um resultado ou tipo final — é só um espaço para observar suas próprias tendências.</p>
 
-    <div class="style-grid">
-      <div class="style-item">
-        <h3>Ritmo de decisão</h3>
-        <div class="style-toggle" role="group" aria-label="Ritmo de decisão">
-          <button type="button" data-target="s1" data-text="Você costuma decidir rápido e ajustar a rota pelo caminho, sem esperar ter todas as respostas antes de agir.">Decide rápido e ajusta pelo caminho</button>
-          <button type="button" data-target="s1" data-text="Você costuma reunir mais informação e ponderar com calma antes de decidir, preferindo reduzir incertezas primeiro.">Analisa com calma antes de decidir</button>
+    <!-- TELA 1: INTRODUÇÃO -->
+    <section id="screen-intro" class="screen active">
+      <h1>Descubra seu Estilo de Comportamento</h1>
+      <p class="lead">Um teste baseado em quatro dimensões amplamente conhecidas sobre estilos de comportamento — iniciativa e decisão, comunicação e interação, cooperação e constância, e atenção a critérios. Leva cerca de 4 minutos.</p>
+      <button class="btn" onclick="startQuiz()">Começar o Teste</button>
+      <p class="privacy-note" style="text-align:center; margin-top:14px;">Não existem respostas certas ou erradas — escolha a opção que mais se parece com você. O resultado aparece na hora, sem necessidade de cadastro.</p>
+    </section>
+
+    <!-- TELA 2: QUIZ -->
+    <section id="screen-quiz" class="screen">
+      <div class="progress-wrap">
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="24" aria-valuenow="0" aria-labelledby="progressLabel">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
         </div>
-        <p class="style-result" id="s1">Escolha uma opção para ver a reflexão.</p>
+        <div class="progress-label" id="progressLabel">Pergunta 1 de 24</div>
+      </div>
+      <div class="q-text" id="qText">Com qual afirmação você mais se identifica?</div>
+      <div class="options" id="qOptions"></div>
+      <div class="nav-row">
+        <button class="link-btn" id="backBtn" onclick="goBack()">&larr; Voltar</button>
+        <span></span>
+      </div>
+    </section>
+
+    <!-- TELA 3: RESULTADO IMEDIATO + CAPTURA OPCIONAL -->
+    <section id="screen-result" class="screen">
+      <div class="result-type">
+        <div class="result-letters" id="resLetter">-</div>
+        <div class="result-name" id="resName"></div>
+      </div>
+      <p class="result-desc" id="resDesc"></p>
+
+      <div class="result-block">
+        <h3>Pontos fortes</h3>
+        <ul id="resStrengths"></ul>
+      </div>
+      <div class="result-block">
+        <h3>Caminhos de desenvolvimento</h3>
+        <ul id="resGrowth"></ul>
+      </div>
+      <div class="result-block">
+        <h3>Como você pontuou em cada dimensão</h3>
+        <div id="resScores"></div>
       </div>
 
-      <div class="style-item">
-        <h3>Foco da comunicação</h3>
-        <div class="style-toggle" role="group" aria-label="Foco da comunicação">
-          <button type="button" data-target="s2" data-text="Você tende a ir direto ao ponto, priorizando clareza e objetividade na hora de se comunicar.">Vai direto ao ponto</button>
-          <button type="button" data-target="s2" data-text="Você tende a preparar o terreno antes de falar, cuidando do contexto e de como a mensagem será recebida.">Prepara o terreno antes de falar</button>
-        </div>
-        <p class="style-result" id="s2">Escolha uma opção para ver a reflexão.</p>
+      <div class="result-block" id="captureBlock">
+        <h3>Quer receber esse resultado por e-mail? (opcional)</h3>
+        <p class="privacy-note" style="margin-top:0;">Isso não é necessário para ver o resultado acima — é só uma forma de guardá-lo.</p>
+        <form class="lead-form" id="leadForm" onsubmit="submitLead(event)" novalidate>
+          <div class="field">
+            <label for="leadName">Nome</label>
+            <input type="text" id="leadName" autocomplete="name" placeholder="Seu nome" aria-describedby="leadNameError">
+            <p class="field-error" id="leadNameError" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="leadEmail">E-mail</label>
+            <input type="email" id="leadEmail" autocomplete="email" placeholder="seu@email.com" aria-describedby="leadEmailError">
+            <p class="field-error" id="leadEmailError" role="alert"></p>
+          </div>
+          <!-- Honeypot: campo invisível para humanos, usado só para filtrar bots. -->
+          <div class="visually-hidden" aria-hidden="true">
+            <label for="leadWebsite">Não preencha este campo</label>
+            <input type="text" id="leadWebsite" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <p class="form-error" id="formError" role="alert" style="display:none;"></p>
+          <button type="submit" class="btn secondary" id="leadSubmitBtn">Enviar por e-mail</button>
+          <p class="privacy-note">Seus dados não são compartilhados com terceiros.</p>
+        </form>
+        <p class="privacy-note" id="leadSentMsg" style="display:none;">Recebido! Você pode continuar vendo seu resultado acima.</p>
       </div>
 
-      <div class="style-item">
-        <h3>Forma de organizar o trabalho</h3>
-        <div class="style-toggle" role="group" aria-label="Forma de organizar o trabalho">
-          <button type="button" data-target="s3" data-text="Você tende a preferir estrutura, listas e etapas bem definidas para se sentir no controle do trabalho.">Prefere estrutura e listas</button>
-          <button type="button" data-target="s3" data-text="Você tende a preferir fluidez e liberdade para reorganizar as prioridades conforme a situação muda.">Prefere fluidez e adaptação</button>
-        </div>
-        <p class="style-result" id="s3">Escolha uma opção para ver a reflexão.</p>
-      </div>
+      <button class="btn" style="margin-top:12px;" onclick="restartQuiz()">Refazer o Teste</button>
+    </section>
 
-      <div class="style-item">
-        <h3>Reação a mudanças de plano</h3>
-        <div class="style-toggle" role="group" aria-label="Reação a mudanças de plano">
-          <button type="button" data-target="s4" data-text="Você costuma se adaptar com facilidade quando um plano muda de última hora.">Se adapta com facilidade</button>
-          <button type="button" data-target="s4" data-text="Você costuma precisar de um tempo para se reorganizar quando um plano muda de última hora.">Precisa de um tempo para se reorganizar</button>
-        </div>
-        <p class="style-result" id="s4">Escolha uma opção para ver a reflexão.</p>
-      </div>
-    </div>
-
-    <div class="cta-box">
-      <p>Enquanto o Supleno Estilos não é lançado, você já pode fazer o Supleno Tipos.</p>
-      <a class="btn" href="../tipos/">Fazer o Supleno Tipos</a>
-    </div>
   </main>
-
-  <footer class="bottom">&copy; <span id="year"></span> Supleno Estilos — conteúdo educativo em construção. Um produto da família Testes Supleno.</footer>
+  <footer class="bottom">&copy; <span id="year"></span> Supleno Estilos — conteúdo educativo inspirado apenas em quatro dimensões amplamente conhecidas sobre estilos de comportamento. Não é um instrumento clínico, não tem filiação ou licenciamento de nenhuma metodologia comercial e não substitui avaliação psicológica profissional. Um produto da família Testes Supleno.</footer>
 </div>
 
+<!--
+  config.js NÃO é versionado (ver .gitignore) e é opcional: se ausente, o site
+  funciona normalmente em modo aberto/local (sem envio de webhook). Copie
+  config.example.js para config.js e preencha antes de publicar em produção.
+  Este config.js é próprio do Supleno Estilos — não reaproveite o do Supleno
+  Tipos, pois o backend (apps-script/Code.gs) validaria a sigla errada.
+-->
 <script src="../assets/nav.js" defer></script>
+<script src="config.js" onerror="window.SUPLENO_CONFIG = window.SUPLENO_CONFIG || {}; console.info('config.js não encontrado — rodando em modo aberto/local (ver README > Configuração).');"></script>
 <script>
-document.getElementById('year').textContent = new Date().getFullYear();
-document.querySelectorAll('.style-toggle').forEach(function (group) {
-  group.querySelectorAll('button').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      group.querySelectorAll('button').forEach(function (b) { b.classList.remove('selected'); b.setAttribute('aria-pressed', 'false'); });
-      btn.classList.add('selected');
-      btn.setAttribute('aria-pressed', 'true');
-      document.getElementById(btn.dataset.target).textContent = btn.dataset.text;
-    });
+/* ================= CONFIGURAÇÃO =================
+   Valores reais ficam em config.js (gitignored, ver config.example.js).
+   Aqui só definimos os padrões seguros usados quando config.js não existe. */
+const SUPLENO_CONFIG = window.SUPLENO_CONFIG || {};
+const CTA_URL = SUPLENO_CONFIG.CTA_URL || "https://supleno.com";
+const WEBHOOK_URL = SUPLENO_CONFIG.WEBHOOK_URL || ""; // vazio = formulário não envia (modo seguro/local)
+const CONFIG_TOKEN = SUPLENO_CONFIG.CONFIG_TOKEN || ""; // não secreto, ver README > Antiabuso
+
+/* ================= DADOS =================
+   Banco de perguntas original do Supleno, inspirado apenas nas quatro
+   dimensões amplamente conhecidas sobre estilos de comportamento (iniciativa,
+   comunicação, cooperação e atenção a critérios). Cada pergunta é uma escolha
+   forçada entre duas afirmações de dimensões diferentes; a dimensão escolhida
+   recebe 1 ponto. As 24 perguntas cobrem as 6 combinações possíveis entre as
+   4 dimensões, 4 vezes cada, então toda dimensão aparece exatamente 12 vezes
+   — ninguém parte com vantagem estrutural sobre as outras. */
+const ORDER = ["D", "I", "S", "C"];
+const DIMENSIONS = {
+  D: "Iniciativa e decisão",
+  I: "Comunicação e interação",
+  S: "Cooperação e constância",
+  C: "Atenção a critérios"
+};
+const QUESTIONS = [
+  {"pair":"DI","a":{"t":"Quando um projeto trava, você prefere tomar a decisão e seguir logo em frente.","p":"D"},"b":{"t":"Quando um projeto trava, você prefere conversar com o grupo para buscar novas ideias juntos.","p":"I"}},
+  {"pair":"DI","a":{"t":"Em uma negociação, você vai direto ao ponto e busca fechar o quanto antes.","p":"D"},"b":{"t":"Em uma negociação, você investe tempo em criar conexão antes de falar de números.","p":"I"}},
+  {"pair":"DI","a":{"t":"Ao liderar um grupo, você prefere definir o rumo e cobrar resultado.","p":"D"},"b":{"t":"Ao liderar um grupo, você prefere manter todos animados e engajados.","p":"I"}},
+  {"pair":"DI","a":{"t":"Diante de um obstáculo inesperado, você prefere agir imediatamente para resolver.","p":"D"},"b":{"t":"Diante de um obstáculo inesperado, você prefere comentar com alguém para organizar os próximos passos juntos.","p":"I"}},
+  {"pair":"DS","a":{"t":"Ao assumir uma tarefa nova, você prefere começar logo e ajustar o percurso pelo caminho.","p":"D"},"b":{"t":"Ao assumir uma tarefa nova, você prefere manter um ritmo constante, sem pressa para mudar o plano.","p":"S"}},
+  {"pair":"DS","a":{"t":"Quando alguém discorda de você, prefere argumentar com firmeza até convencer.","p":"D"},"b":{"t":"Quando alguém discorda de você, prefere ceder em parte para manter a relação tranquila.","p":"S"}},
+  {"pair":"DS","a":{"t":"Em uma reunião de equipe, você prefere propor mudanças diretas, mesmo que incomodem.","p":"D"},"b":{"t":"Em uma reunião de equipe, você prefere manter o que já funciona, evitando atritos.","p":"S"}},
+  {"pair":"DS","a":{"t":"Sob pressão de prazo, você prefere acelerar e assumir o controle da situação.","p":"D"},"b":{"t":"Sob pressão de prazo, você prefere manter a calma e seguir o processo já combinado.","p":"S"}},
+  {"pair":"DC","a":{"t":"Antes de decidir, você prefere agir com base no que parece certo no momento.","p":"D"},"b":{"t":"Antes de decidir, você prefere checar dados e detalhes com cuidado.","p":"C"}},
+  {"pair":"DC","a":{"t":"Ao montar um plano, você prefere definir só o essencial e ajustar na prática.","p":"D"},"b":{"t":"Ao montar um plano, você prefere detalhar cada etapa antes de começar.","p":"C"}},
+  {"pair":"DC","a":{"t":"Ao avaliar um risco, você confia mais no instinto para decidir rápido.","p":"D"},"b":{"t":"Ao avaliar um risco, você prefere reunir informações antes de qualquer decisão.","p":"C"}},
+  {"pair":"DC","a":{"t":"Quando o resultado importa mais que o processo, você aceita pular etapas.","p":"D"},"b":{"t":"Quando o processo tem regras claras, você prefere seguir cada uma delas.","p":"C"}},
+  {"pair":"IS","a":{"t":"Em um evento social, você prefere circular e conhecer pessoas novas.","p":"I"},"b":{"t":"Em um evento social, você prefere ficar com pessoas que já conhece bem.","p":"S"}},
+  {"pair":"IS","a":{"t":"Ao apresentar uma ideia, você prefere empolgar o público com entusiasmo.","p":"I"},"b":{"t":"Ao apresentar uma ideia, você prefere explicar com calma, sem pressa.","p":"S"}},
+  {"pair":"IS","a":{"t":"Diante de uma mudança de planos, você se anima com a novidade.","p":"I"},"b":{"t":"Diante de uma mudança de planos, você prefere entender bem antes de aceitar.","p":"S"}},
+  {"pair":"IS","a":{"t":"Ao trabalhar em grupo, você prefere manter a conversa animada.","p":"I"},"b":{"t":"Ao trabalhar em grupo, você prefere manter todos alinhados e cooperando.","p":"S"}},
+  {"pair":"IC","a":{"t":"Ao compartilhar uma opinião, você prefere fazer isso de forma espontânea e expressiva.","p":"I"},"b":{"t":"Ao compartilhar uma opinião, você prefere organizar os argumentos com cuidado antes de falar.","p":"C"}},
+  {"pair":"IC","a":{"t":"Você se sente mais à vontade improvisando uma apresentação.","p":"I"},"b":{"t":"Você se sente mais à vontade com uma apresentação bem estruturada e revisada.","p":"C"}},
+  {"pair":"IC","a":{"t":"Você prefere ambientes de trabalho dinâmicos, com bastante interação.","p":"I"},"b":{"t":"Você prefere ambientes de trabalho organizados, com regras claras.","p":"C"}},
+  {"pair":"IC","a":{"t":"Ao tomar uma decisão em grupo, você valoriza o clima e o entusiasmo coletivo.","p":"I"},"b":{"t":"Ao tomar uma decisão em grupo, você valoriza a precisão das informações usadas.","p":"C"}},
+  {"pair":"SC","a":{"t":"Você prefere manter a rotina, mesmo quando surgem novas formas de fazer algo.","p":"S"},"b":{"t":"Você prefere revisar e ajustar o método sempre que encontra uma forma mais precisa.","p":"C"}},
+  {"pair":"SC","a":{"t":"Em um conflito, você busca primeiro preservar a relação entre as pessoas.","p":"S"},"b":{"t":"Em um conflito, você busca primeiro entender os fatos antes de se posicionar.","p":"C"}},
+  {"pair":"SC","a":{"t":"Você valoriza a estabilidade de seguir o mesmo processo por bastante tempo.","p":"S"},"b":{"t":"Você valoriza a qualidade de revisar cada detalhe antes de entregar.","p":"C"}},
+  {"pair":"SC","a":{"t":"Você prefere um ritmo de trabalho previsível, sem grandes variações.","p":"S"},"b":{"t":"Você prefere um ritmo de trabalho cuidadoso, ainda que mais lento.","p":"C"}}
+];
+const RESULTS = {
+  "D": {
+    "name": "Estilo Direto",
+    "desc": "Você tende a agir com rapidez, ir direto ao ponto e tomar a frente quando é preciso decidir. Prefere resultado visível a longos debates e se sente à vontade assumindo responsabilidade por decisões difíceis.",
+    "strengths": ["Disposição para decidir e agir rápido", "Foco em resultado e superação de desafios", "Disposição para assumir responsabilidade"],
+    "growth": ["Ouvir mais antes de decidir", "Ter paciência com processos mais lentos", "Considerar o impacto das decisões nas pessoas envolvidas"]
+  },
+  "I": {
+    "name": "Estilo Expressivo",
+    "desc": "Você tende a se comunicar de forma aberta e entusiasmada, conectando-se com facilidade com pessoas novas. Gosta de variedade, de trocar ideias em grupo e de manter o ambiente leve.",
+    "strengths": ["Facilidade para se comunicar e criar conexões", "Capacidade de engajar e envolver outras pessoas", "Abertura para novidades e variedade"],
+    "growth": ["Sustentar o foco em tarefas repetitivas", "Organizar prioridades entre tantas possibilidades", "Equilibrar entusiasmo com atenção aos detalhes"]
+  },
+  "S": {
+    "name": "Estilo Constante",
+    "desc": "Você tende a manter um ritmo estável, cooperar com o grupo e evitar conflitos desnecessários. Prefere previsibilidade a mudanças repentinas e valoriza relações de confiança construídas com o tempo.",
+    "strengths": ["Cooperação e constância no que se propõe a fazer", "Paciência diante de processos mais longos", "Capacidade de manter a harmonia em um grupo"],
+    "growth": ["Expressar discordância mesmo quando gera desconforto", "Abrir espaço para mudanças fora do esperado", "Comunicar limites antes de chegar à sobrecarga"]
+  },
+  "C": {
+    "name": "Estilo Criterioso",
+    "desc": "Você tende a prestar atenção a detalhes, buscar precisão e seguir critérios claros antes de decidir. Prefere dados e métodos já testados a decisões por impulso.",
+    "strengths": ["Atenção a detalhes e busca por qualidade", "Decisões baseadas em critérios e dados", "Cuidado ao seguir regras e processos"],
+    "growth": ["Decidir mesmo sem ter todas as informações", "Comunicar o raciocínio de forma mais direta", "Tolerar mudanças de última hora"]
+  }
+};
+
+/* ================= ESTADO ================= */
+let order = [];
+let current = 0;
+let answers = [];
+let scores = {};
+let currentStyle = null;
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function startQuiz(){
+  order = shuffle(QUESTIONS.map((q,i)=>i));
+  current = 0;
+  answers = new Array(QUESTIONS.length).fill(null);
+  showScreen('screen-quiz');
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const qi = order[current];
+  const q = QUESTIONS[qi];
+  const optsWrap = document.getElementById('qOptions');
+  optsWrap.innerHTML = '';
+  [q.a, q.b].forEach(opt=>{
+    const btn = document.createElement('button');
+    btn.className = 'option';
+    btn.textContent = opt.t;
+    btn.onclick = ()=>selectOption(qi, opt.p);
+    optsWrap.appendChild(btn);
   });
-});
+  document.getElementById('progressLabel').textContent = `Pergunta ${current+1} de ${QUESTIONS.length}`;
+  document.getElementById('progressFill').style.width = `${(current/QUESTIONS.length)*100}%`;
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(current));
+  document.getElementById('backBtn').style.visibility = current===0 ? 'hidden' : 'visible';
+}
+
+function selectOption(qi, pole){
+  answers[qi] = pole;
+  if(current < QUESTIONS.length - 1){ current++; renderQuestion(); }
+  else { finishQuiz(); }
+}
+
+function goBack(){ if(current>0){ current--; renderQuestion(); } }
+
+/* O resultado aparece imediatamente ao final do quiz — a captura de
+   e-mail (abaixo, no mesmo ecrã) é opcional e nunca bloqueia esta etapa. */
+function finishQuiz(){
+  scores = {D:0,I:0,S:0,C:0};
+  answers.forEach(p=>{ if(p) scores[p]++; });
+  document.getElementById('progressFill').style.width = '100%';
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(QUESTIONS.length));
+  currentStyle = computeStyle();
+  renderResult(currentStyle);
+  showScreen('screen-result');
+}
+
+/* Algoritmo determinístico: vence a dimensão com maior pontuação; em caso
+   de empate, prevalece a primeira dimensão na ordem fixa ORDER (D, I, S, C).
+   O mesmo conjunto de respostas produz sempre o mesmo estilo. */
+function computeStyle(){
+  let best = ORDER[0];
+  let bestScore = scores[best];
+  for(let i=1;i<ORDER.length;i++){
+    const dim = ORDER[i];
+    if(scores[dim] > bestScore){ best = dim; bestScore = scores[dim]; }
+  }
+  return best;
+}
+
+function renderResult(code){
+  const result = RESULTS[code];
+  document.getElementById('resLetter').textContent = code;
+  document.getElementById('resName').textContent = result.name;
+  document.getElementById('resDesc').textContent = result.desc;
+
+  const strengthsList = document.getElementById('resStrengths');
+  strengthsList.innerHTML = '';
+  result.strengths.forEach(s=>{ const li = document.createElement('li'); li.textContent = s; strengthsList.appendChild(li); });
+
+  const growthList = document.getElementById('resGrowth');
+  growthList.innerHTML = '';
+  result.growth.forEach(s=>{ const li = document.createElement('li'); li.textContent = s; growthList.appendChild(li); });
+
+  const scoresWrap = document.getElementById('resScores');
+  scoresWrap.innerHTML = '';
+  ORDER.forEach(dim=>{
+    const row = document.createElement('div');
+    row.className = 'mini-bar-row';
+    const label = document.createElement('span');
+    label.className = 'mini-bar-label';
+    label.textContent = `${DIMENSIONS[dim]} — ${scores[dim]} de ${QUESTIONS.length}`;
+    const track = document.createElement('div');
+    track.className = 'mini-bar-track';
+    track.setAttribute('aria-hidden', 'true');
+    const fill = document.createElement('div');
+    fill.className = 'mini-bar-fill';
+    fill.style.width = `${Math.round((scores[dim]/QUESTIONS.length)*100)}%`;
+    track.appendChild(fill);
+    row.appendChild(label);
+    row.appendChild(track);
+    scoresWrap.appendChild(row);
+  });
+}
+
+/* Mesmas regras de formato usadas no Supleno Tipos, para dar feedback
+   imediato ao usuário — aqui a captura é opcional, então a validação só
+   entra em ação se a pessoa decidir preencher e enviar o formulário. */
+const NAME_PATTERN = /^[\p{L}\p{M} '.\-]{1,100}$/u;
+const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+
+function clearLeadErrors(){
+  ['leadNameError','leadEmailError'].forEach(id=>{
+    document.getElementById(id).textContent = '';
+  });
+  ['leadName','leadEmail'].forEach(id=>{
+    document.getElementById(id).removeAttribute('aria-invalid');
+  });
+  const formError = document.getElementById('formError');
+  formError.style.display = 'none';
+  formError.textContent = '';
+}
+
+function setFieldError(inputId, errorId, message){
+  document.getElementById(inputId).setAttribute('aria-invalid', 'true');
+  document.getElementById(errorId).textContent = message;
+}
+
+function validateLeadForm(){
+  clearLeadErrors();
+  const name = document.getElementById('leadName').value.trim();
+  const email = document.getElementById('leadEmail').value.trim();
+  let firstInvalid = null;
+
+  if(!NAME_PATTERN.test(name)){
+    setFieldError('leadName','leadNameError','Informe seu nome (só letras, espaços e hífen, até 100 caracteres).');
+    firstInvalid = firstInvalid || 'leadName';
+  }
+  if(!EMAIL_PATTERN.test(email)){
+    setFieldError('leadEmail','leadEmailError','Informe um e-mail válido.');
+    firstInvalid = firstInvalid || 'leadEmail';
+  }
+
+  if(firstInvalid){
+    document.getElementById(firstInvalid).focus();
+    return null;
+  }
+  return { name, email };
+}
+
+function showLeadSent(){
+  document.getElementById('leadForm').style.display = 'none';
+  document.getElementById('leadSentMsg').style.display = 'block';
+}
+
+function submitLead(e){
+  e.preventDefault();
+
+  // Honeypot: se o campo invisível foi preenchido, é quase certamente um bot.
+  // Fingimos sucesso e não fazemos nenhuma chamada de rede real. O resultado
+  // já está na tela havia muito antes deste formulário existir.
+  const honeypot = document.getElementById('leadWebsite').value.trim();
+  if(honeypot){
+    showLeadSent();
+    return;
+  }
+
+  const fields = validateLeadForm();
+  if(!fields){
+    return;
+  }
+  const { name, email } = fields;
+  const btn = document.getElementById('leadSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+
+  const payload = {
+    name, email, code: currentStyle, scores,
+    website: honeypot, token: CONFIG_TOKEN,
+    date: new Date().toISOString()
+  };
+
+  if(WEBHOOK_URL){
+    // Melhor esforço: validamos a resposta só para diagnóstico (console),
+    // mas nunca alteramos o que já está na tela — o resultado já apareceu
+    // no fim do quiz, antes mesmo deste envio opcional existir.
+    fetch(WEBHOOK_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // evita preflight CORS no Apps Script
+      body: JSON.stringify(payload)
+    }).then(response => {
+        if(!response.ok){
+          console.warn('Webhook respondeu com status HTTP ' + response.status);
+          return null;
+        }
+        return response.json().catch(()=> null);
+      })
+      .then(data => {
+        if(data && data.ok !== true){
+          console.warn('Webhook processou a requisição, mas retornou falha:', data.error || data);
+        }
+      })
+      .catch(err => console.warn('Falha ao contatar o webhook (best-effort):', err))
+      .finally(()=> showLeadSent());
+  } else {
+    showLeadSent();
+  }
+}
+
+function restartQuiz(){
+  document.getElementById('leadForm').style.display = 'flex';
+  document.getElementById('leadSentMsg').style.display = 'none';
+  const btn = document.getElementById('leadSubmitBtn');
+  btn.disabled = false; btn.textContent = 'Enviar por e-mail';
+  document.getElementById('leadForm').reset();
+  clearLeadErrors();
+  showScreen('screen-intro');
+}
+
+document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>

@@ -1,8 +1,8 @@
 # Testes Supleno — família de experiências
 
-Site estático em HTML, CSS e JavaScript da família **Testes Supleno**. O Supleno Tipos está disponível; Supleno Estilos e Supleno Traços estão em construção.
+Site estático em HTML, CSS e JavaScript da família **Testes Supleno**. O Supleno Tipos e o Supleno Estilos estão disponíveis; Supleno Traços segue em construção.
 
-O teste possui 28 perguntas, 16 tipos e páginas de resultado com variação de título no masculino e feminino.
+O Supleno Tipos possui 28 perguntas, 16 tipos e páginas de resultado com variação de título no masculino e feminino. O Supleno Estilos possui 24 perguntas de escolha forçada, quatro dimensões comportamentais e quatro resultados educativos.
 
 ## Identidade do produto
 
@@ -18,24 +18,25 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 - `/` (`index.html`) — portal da família, com Supleno Tipos, Supleno Estilos, Supleno Traços e o futuro Mapa Integrado
 - `/tipos/` (`tipos/index.html`) — introdução, 28 perguntas, captura e resultado resumido
 - `/tipos/resultados/{tipo}-{m|f}.html` — 32 páginas de resultado
-- `/estilos/` e `/tracos/` — protótipos educativos interativos, sem captura, resultado ou envio de dados
+- `/estilos/` — teste educativo de 24 perguntas, com resultado básico imediato e captura opcional posterior
+- `/tracos/` — protótipo educativo interativo, sem captura, resultado ou envio de dados
 - `assets/style.css` — estilo compartilhado
 - `assets/nav.js` — comportamento do menu responsivo compartilhado
 - `assets/personagens/` — imagens dos personagens
-- `apps-script/Code.gs` — referência de backend para gravação e envio do resultado
+- `apps-script/Code.gs` — referência de backend do Supleno Tipos; o Supleno Estilos exige endpoint próprio que valide os códigos `D`, `I`, `S` e `C` antes de produção
 - `PROMPTS-IMAGENS.md` — prompts para criar as ilustrações
 
 ## Configuração necessária antes da produção
 
-1. Definir e implantar o backend de captura do Supleno.
-2. Informar a URL publicada em `WEBHOOK_URL` no `config.js` local (a partir de `config.example.js`).
+1. Definir e implantar os backends de captura de cada produto do Supleno. Não apontar o Supleno Estilos para o endpoint do Supleno Tipos: os códigos e o contrato são diferentes.
+2. Informar a URL publicada em `WEBHOOK_URL` no `config.js` local (a partir de `config.example.js`). Para o Supleno Estilos, use `estilos/config.example.js` e `estilos/config.js`.
 3. Confirmar `CTA_URL` e `SITE_BASE_URL` no frontend e no backend.
 4. Criar as imagens e substituir todos os espaços reservados.
 5. Configurar origem, UTM, consentimento e métricas.
 6. Executar `python3 scripts/validate-content.py`.
 7. Homologar o fluxo completo com dados sintéticos.
 
-Enquanto `WEBHOOK_URL` estiver vazio, o formulário não grava leads nem envia resultados.
+Enquanto `WEBHOOK_URL` estiver vazio, o teste funciona normalmente, o resultado aparece imediatamente e o formulário opcional não grava leads nem envia resultados.
 
 ## Configuração e segurança
 
@@ -65,6 +66,7 @@ git diff --check
 - Não usar “energia” como sinônimo de disposição, entusiasmo, empolgação, ânimo ou interesse.
 - Em tipologia, preferir “direcionamento da atenção” ou “preferência de interação”.
 - Resultado descreve tendências; não é diagnóstico nem identidade fixa.
+- Supleno Estilos é inspirado apenas nas quatro dimensões amplamente conhecidas sobre estilos de comportamento. Não é instrumento oficial, licenciado ou clínico.
 
 ## URLs provisórias e finais
 

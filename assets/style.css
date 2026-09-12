@@ -145,3 +145,8 @@ footer.bottom{text-align:center; margin-top:22px; font-size:12px; color:var(--in
 .trait-item input[type="range"]{width:100%; accent-color:var(--terracotta);}
 .trait-item .trait-caption{display:flex; justify-content:space-between; font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
 .trait-item .trait-value{font-size:12.5px; color:var(--terracotta-dark); font-weight:700;}
+
+.mini-bar-row{margin-bottom:12px;}
+.mini-bar-label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:5px;}
+.mini-bar-track{height:8px; background:var(--border); border-radius:999px; overflow:hidden;}
+.mini-bar-fill{height:100%; background:linear-gradient(90deg,var(--gold),var(--terracotta)); border-radius:999px;}
