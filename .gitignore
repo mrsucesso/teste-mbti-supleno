@@ -6,3 +6,7 @@ config.js
 .DS_Store
 Thumbs.db
 *.swp
+
+# Artefatos de testes Python
+__pycache__/
+*.py[cod]
