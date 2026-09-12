@@ -64,7 +64,7 @@
         </div>
         <div class="progress-label" id="progressLabel">Pergunta 1 de 24</div>
       </div>
-      <div class="q-text" id="qText">Com qual afirmação você mais se identifica?</div>
+      <div class="q-text" id="qText" tabindex="-1">Com qual afirmação você mais se identifica?</div>
       <div class="options" id="qOptions"></div>
       <div class="nav-row">
         <button class="link-btn" id="backBtn" onclick="goBack()">&larr; Voltar</button>
@@ -261,6 +261,8 @@ function startQuiz(){
 function renderQuestion(){
   const qi = order[current];
   const q = QUESTIONS[qi];
+  const qText = document.getElementById('qText');
+  qText.textContent = `Pergunta ${current+1}. Com qual afirmação você mais se identifica?`;
   const optsWrap = document.getElementById('qOptions');
   optsWrap.innerHTML = '';
   [q.a, q.b].forEach(opt=>{
@@ -274,6 +276,7 @@ function renderQuestion(){
   document.getElementById('progressFill').style.width = `${(current/QUESTIONS.length)*100}%`;
   document.querySelector('.progress-track').setAttribute('aria-valuenow', String(current + 1));
   document.getElementById('backBtn').style.visibility = current===0 ? 'hidden' : 'visible';
+  qText.focus({preventScroll:true});
 }
 
 function selectOption(qi, pole){

@@ -229,9 +229,10 @@ class TestAntiAbuse(unittest.TestCase):
     def test_backend_honeypot_short_circuits_without_processing(self):
         do_post_body = extract_function_body(CODE_GS_TEXT, "doPost")
         honeypot_pos = do_post_body.find("data.website")
-        append_pos = do_post_body.find("appendLead(")
+        append_pos = do_post_body.find("processSubmissionAtomically(")
         self.assertNotEqual(honeypot_pos, -1)
-        self.assertLess(honeypot_pos, append_pos, "honeypot deve curto-circuitar antes de gravar o lead")
+        self.assertNotEqual(append_pos, -1)
+        self.assertLess(honeypot_pos, append_pos, "honeypot deve curto-circuitar antes do processamento atômico")
 
     def test_config_token_is_not_a_real_secret_by_default(self):
         # O token é lido de configuração privada do Apps Script; o exemplo
@@ -255,8 +256,8 @@ class TestAntiAbuse(unittest.TestCase):
         self.assertIn("PropertiesService.getScriptProperties()", body)
 
     def test_rate_limit_is_enforced_in_doPost(self):
-        do_post_body = extract_function_body(CODE_GS_TEXT, "doPost")
-        self.assertIn("checkRateLimit(validated.email)", do_post_body)
+        atomic_body = extract_function_body(CODE_GS_TEXT, "processSubmissionAtomically")
+        self.assertIn("checkRateLimitLocked(validated.email, props)", atomic_body)
 
     def test_max_payload_size_is_enforced(self):
         do_post_body = extract_function_body(CODE_GS_TEXT, "doPost")
@@ -267,6 +268,65 @@ class TestAntiAbuse(unittest.TestCase):
         # Erros internos vão só para o log do servidor, nunca na resposta ao cliente.
         self.assertIn("Logger.log(", do_post_body)
         self.assertNotIn("error: String(err)", do_post_body)
+
+    def test_submission_side_effects_are_atomic_under_script_lock(self):
+        body = extract_function_body(CODE_GS_TEXT, "processSubmissionAtomically")
+        self.assertIn("LockService.getScriptLock()", body)
+        duplicate = body.index("props.getProperty(idempotencyKey)")
+        reservation = body.index('status: "processing"')
+        rate_limit = body.index("checkRateLimitLocked(validated.email, props)")
+        append = body.index("appendLead(")
+        send = body.index("sendResultEmail(")
+        mark = body.index('status: "done"')
+        self.assertLess(duplicate, rate_limit)
+        self.assertLess(rate_limit, reservation)
+        self.assertLess(reservation, append)
+        self.assertLess(append, send)
+        self.assertLess(send, mark)
+        self.assertIn("lock.releaseLock()", body)
+
+    def test_backend_validates_all_three_products_and_scores(self):
+        body = extract_function_body(CODE_GS_TEXT, "validateInput")
+        for product in ('"tipos"', '"estilos"', '"tracos"'):
+            self.assertIn(product, body)
+        self.assertIn("validateScores", body)
+
+    def test_validation_executes_for_all_three_product_contracts(self):
+        common = {"name": "Pessoa Teste", "email": "pessoa@example.com", "whatsapp": ""}
+        payloads = [
+            dict(common, teste="tipos", code="INTJ", gender="F", resultado={"code": "INTJ", "gender": "F"},
+                 pontuacoes={"E": 2, "I": 5, "S": 3, "N": 4, "T": 4, "F": 3, "J": 5, "P": 2}),
+            dict(common, teste="estilos", resultado="D", pontuacoes={"D": 10, "I": 5, "S": 5, "C": 4}),
+            dict(common, teste="tracos",
+                 resultado={key: {"sum": 15, "percent": 50, "faixa": "medio"}
+                            for key in ("SO", "AN", "OM", "TE", "CO")},
+                 pontuacoes={key: {"sum": 15, "percent": 50, "faixa": "medio"}
+                             for key in ("SO", "AN", "OM", "TE", "CO")}),
+        ]
+        prelude = "global.PropertiesService={getScriptProperties:()=>({getProperty:()=>''})};\n"
+        probe = f"\nconsole.log(JSON.stringify({json.dumps(payloads)}.map(p=>Boolean(validateInput(p)))));"
+        completed = subprocess.run(
+            ["node", "-e", prelude + CODE_GS_TEXT + probe],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        )
+        self.assertEqual(json.loads(completed.stdout), [True, True, True])
+
+    def test_validation_rejects_results_inconsistent_with_scores(self):
+        invalid_payloads = [
+            {"name": "Pessoa Teste", "email": "pessoa@example.com", "whatsapp": "", "teste": "tipos",
+             "code": "INTJ", "gender": "F", "resultado": {"code": "ENFP", "gender": "F"},
+             "pontuacoes": {"E": 2, "I": 5, "S": 3, "N": 4, "T": 4, "F": 3, "J": 5, "P": 2}},
+            {"name": "Pessoa Teste", "email": "pessoa@example.com", "whatsapp": "", "teste": "tracos",
+             "resultado": {}, "pontuacoes": {key: {"sum": 15, "percent": 50, "faixa": "medio"}
+                                               for key in ("SO", "AN", "OM", "TE", "CO")}},
+        ]
+        prelude = "global.PropertiesService={getScriptProperties:()=>({getProperty:()=>''})};\n"
+        probe = f"\nconsole.log(JSON.stringify({json.dumps(invalid_payloads)}.map(p=>Boolean(validateInput(p)))));"
+        completed = subprocess.run(
+            ["node", "-e", prelude + CODE_GS_TEXT + probe], cwd=ROOT,
+            capture_output=True, text=True, check=True,
+        )
+        self.assertEqual(json.loads(completed.stdout), [False, False])
 
 
 class TestWebhookResponseValidation(unittest.TestCase):

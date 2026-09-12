@@ -51,7 +51,7 @@ form.lead-form{display:flex; flex-direction:column; gap:14px; margin-top:4px;}
 .privacy-note{font-size:12px; color:var(--ink-soft); margin-top:2px;}
 .result-type{text-align:center; margin-bottom:22px;}
 .result-letters{font-size:42px; font-weight:800; letter-spacing:.05em; color:var(--terracotta); margin-bottom:4px;}
-.result-name{font-size:22px; font-weight:700; color:var(--teal-dark);}
+.result-name{font-size:22px; font-weight:700; color:var(--teal-dark); margin:0;}
 .result-desc{font-size:15.5px; color:var(--ink); margin:18px 0;}
 .result-block{margin-top:20px;}
 .result-block h3{font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--teal); margin:0 0 10px;}

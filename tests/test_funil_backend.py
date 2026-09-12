@@ -34,6 +34,8 @@ import unittest
 from unittest.mock import Mock
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
+from io import BytesIO
 
 from backend.funil_store import (
     ESTAGIOS,
@@ -44,6 +46,7 @@ from backend.funil_store import (
     mask_email,
     render_template,
 )
+from backend.optout_server import OptOutApplication
 
 
 def payload_base(**overrides):
@@ -68,6 +71,13 @@ def payload_base(**overrides):
 def _registrar_em_processo(path, submission_id, inicio):
     store = FunilStore(Path(path))
     store.registrar_lead(payload_base(submission_id=submission_id), agora=inicio)
+
+
+def _processar_fila_em_processo(path, inicio, contador):
+    def adapter(_message):
+        with contador.get_lock():
+            contador.value += 1
+    FunilStore(Path(path), sandbox=False, adaptador_envio_real=adapter).processar_fila(agora=inicio)
 
 
 class TestSandboxObrigatorio(unittest.TestCase):
@@ -280,10 +290,69 @@ class TestOptOut(unittest.TestCase):
         enviados = self.store.processar_fila(agora=agora + timedelta(days=10))
         self.assertEqual([e for e in enviados if e["submission_id"] == "sub-optout-3"], [])
 
-    def test_opt_out_on_unknown_email_is_a_no_op(self):
+    def test_opt_out_on_unknown_email_is_persisted_after_restart(self):
         resultado = self.store.registrar_opt_out("desconhecido@example.com", self.store.gerar_optout_token("desconhecido@example.com"))
         self.assertTrue(resultado["ok"])
         self.assertEqual(resultado["afetados"], 0)
+        reiniciado = FunilStore(
+            Path(self.tmp.name) / "leads.jsonl",
+            optout_secret=self.store.optout_secret.decode("utf-8"),
+        )
+        self.assertTrue(reiniciado.esta_opt_out("desconhecido@example.com"))
+
+    def test_opt_out_blocks_later_registration_for_same_email(self):
+        email = "bloqueado@example.com"
+        self.store.registrar_opt_out(email, self.store.gerar_optout_token(email))
+        with self.assertRaisesRegex(ValueError, "opt-out"):
+            self.store.registrar_lead(payload_base(email=email, submission_id="sub-bloqueada"))
+
+    def test_opt_out_by_token_rejects_get_without_confirm(self):
+        email = "sai@example.com"
+        self.store.registrar_lead(payload_base(submission_id="sub-optout-token", email=email))
+        token = self.store.gerar_optout_token(email)
+        app = OptOutApplication(self.store)
+        
+        # GET não deve alterar estado
+        statuses = []
+        body = b"".join(app(
+            {"REQUEST_METHOD": "GET", "PATH_INFO": "/optout", "QUERY_STRING": f"token={token}"},
+            lambda status, _headers: statuses.append(status),
+        ))
+        self.assertEqual(statuses, ["200 OK"])
+        self.assertIn(b"Confirmar", body)
+        self.assertFalse(self.store.esta_opt_out(email))
+
+        # POST deve persistir
+        statuses = []
+        body_post = f"token={token}".encode("utf-8")
+        body = b"".join(app(
+            {"REQUEST_METHOD": "POST", "PATH_INFO": "/optout", "QUERY_STRING": f"token={token}", "CONTENT_LENGTH": str(len(body_post)), "wsgi.input": BytesIO(body_post)},
+            lambda status, _headers: statuses.append(status),
+        ))
+        self.assertEqual(statuses, ["200 OK"])
+        self.assertIn(b"cancelado", body)
+        self.assertTrue(self.store.esta_opt_out(email))
+
+    def test_uncertain_sending_is_recoverable_after_reconciliation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            attempts = []
+            def crashing_adapter(message):
+                attempts.append(message["submission_id"])
+                raise RuntimeError("queda")
+
+            store = FunilStore(path, sandbox=False, adaptador_envio_real=crashing_adapter)
+            agora = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
+            store.registrar_lead(payload_base(submission_id="sub-recon"), agora=agora)
+            with self.assertRaises(RuntimeError):
+                store.processar_fila(agora=agora)
+            
+            # Reconciliação manual: marcar como sent
+            store.marcar_enviado_manualmente("sub-recon", "imediato")
+            
+            # Não deve tentar enviar novamente
+            self.assertEqual(store.processar_fila(agora=agora), [])
+            self.assertEqual(len(attempts), 1)
 
     def test_opt_out_rejects_missing_or_invalid_signed_token(self):
         self.store.registrar_lead(payload_base(submission_id="sub-token"))
@@ -296,6 +365,7 @@ class TestOptOut(unittest.TestCase):
         self.store.registrar_lead(payload_base(submission_id="sub-url"))
         contexto = self.store._construir_contexto(self.store.obter_lead("sub-url"))
         self.assertNotIn("maria@example.com", contexto["optout_url"])
+        self.assertEqual(urlsplit(contexto["optout_url"]).path, "/optout")
         self.assertIn("token=", contexto["optout_url"])
 
 
@@ -345,6 +415,77 @@ class TestFilaDeSequencia(unittest.TestCase):
         self.store.registrar_opt_out("maria@example.com", self.store.gerar_optout_token("maria@example.com"))  # limpa estado anterior
         with self.assertRaises(ValueError):
             self.store.registrar_lead(payload_base(submission_id="sub-sem-consentimento", consentimento=False))
+
+    def test_real_send_is_marked_sending_before_adapter_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            observed = []
+
+            def adapter(_message):
+                persisted = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+                lead = next(item for item in persisted if item.get("submission_id") == "sub-outbox")
+                observed.append(lead["envios"]["imediato"])
+
+            store = FunilStore(path, sandbox=False, adaptador_envio_real=adapter)
+            store.registrar_lead(payload_base(submission_id="sub-outbox"), agora=self.agora)
+            store.processar_fila(agora=self.agora)
+            self.assertEqual(observed, ["sending"])
+
+    def test_uncertain_sending_is_not_resent_after_adapter_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            attempts = []
+
+            def crashing_adapter(message):
+                attempts.append(message["estagio"])
+                raise RuntimeError("queda sintética após entrega incerta")
+
+            store = FunilStore(path, sandbox=False, adaptador_envio_real=crashing_adapter)
+            store.registrar_lead(payload_base(submission_id="sub-crash"), agora=self.agora)
+            with self.assertRaises(RuntimeError):
+                store.processar_fila(agora=self.agora)
+
+            restarted = FunilStore(path, sandbox=False, adaptador_envio_real=crashing_adapter)
+            self.assertEqual(restarted.processar_fila(agora=self.agora), [])
+            self.assertEqual(attempts, ["imediato"])
+            self.assertEqual(restarted.obter_lead("sub-crash")["envios"]["imediato"], "sending")
+
+    def test_concurrent_workers_send_each_stage_only_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            FunilStore(path).registrar_lead(payload_base(submission_id="sub-workers"), agora=self.agora)
+            contador = multiprocessing.Value("i", 0)
+            workers = [multiprocessing.Process(
+                target=_processar_fila_em_processo,
+                args=(str(path), self.agora, contador),
+            ) for _ in range(6)]
+            for worker in workers:
+                worker.start()
+            for worker in workers:
+                worker.join(10)
+                self.assertEqual(worker.exitcode, 0)
+            self.assertEqual(contador.value, 1)
+
+    def test_successful_earlier_lead_stays_sent_when_later_adapter_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            attempts = []
+
+            def adapter(message):
+                attempts.append(message["submission_id"])
+                if message["submission_id"] == "sub-second":
+                    raise RuntimeError("falha sintética no segundo lead")
+
+            store = FunilStore(path, sandbox=False, adaptador_envio_real=adapter)
+            store.registrar_lead(payload_base(submission_id="sub-first", email="first@example.com"), agora=self.agora)
+            store.registrar_lead(payload_base(submission_id="sub-second", email="second@example.com"), agora=self.agora)
+            with self.assertRaises(RuntimeError):
+                store.processar_fila(agora=self.agora)
+
+            restarted = FunilStore(path, sandbox=False, adaptador_envio_real=adapter)
+            self.assertEqual(restarted.processar_fila(agora=self.agora), [])
+            self.assertEqual(attempts, ["sub-first", "sub-second"])
+            self.assertEqual(restarted.obter_lead("sub-first")["envios"]["imediato"], "sent")
 
 
 class TestTemplates(unittest.TestCase):

@@ -14,6 +14,7 @@ sandbox, é obrigatório fornecer um `adaptador_envio_real` explícito.
 from __future__ import annotations
 
 import json
+import base64
 import hashlib
 import hmac
 import logging
@@ -199,6 +200,9 @@ class FunilStore:
                 if not linha:
                     continue
                 lead = json.loads(linha)
+                if lead.get("record_type") == "opt_out":
+                    self._opt_out_emails.add(lead["email"].strip().lower())
+                    continue
                 self._leads[lead["submission_id"]] = lead
                 if lead.get("opt_out"):
                     self._opt_out_emails.add(lead["email"].strip().lower())
@@ -243,6 +247,8 @@ class FunilStore:
 
         with self._lock, self._lock_processo():
             self._carregar()
+            if email.lower() in self._opt_out_emails:
+                raise ValueError("e-mail com opt-out ativo; recadastro bloqueado")
             existente = self._leads.get(submission_id)
             if existente is not None:
                 logger.info("lead duplicado ignorado: teste=%s email=%s submission_id=%s", teste, mask_email(email), submission_id)
@@ -254,6 +260,7 @@ class FunilStore:
                 "utm_source": payload.get("utm_source") or "", "utm_medium": payload.get("utm_medium") or "",
                 "utm_campaign": payload.get("utm_campaign") or "", "origem": payload.get("origem") or "",
                 "data_criacao": agora.isoformat(), "estado_sequencia": "pendente", "opt_out": False,
+                "envios": {estagio: "pending" for estagio in ESTAGIOS},
             }
             self._leads[submission_id] = lead
             self._persistir_tudo_locked()
@@ -270,12 +277,19 @@ class FunilStore:
         return list(self._leads.values())
 
     def gerar_optout_token(self, email: str) -> str:
-        normalizado = (email or "").strip().lower().encode("utf-8")
-        return hmac.new(self.optout_secret, normalizado, hashlib.sha256).hexdigest()
+        normalizado = (email or "").strip().lower()
+        normalizado_bytes = normalizado.encode("utf-8")
+        mac = hmac.new(self.optout_secret, normalizado_bytes, hashlib.sha256).hexdigest()
+        b64_email = base64.urlsafe_b64encode(normalizado_bytes).decode("utf-8").rstrip("=")
+        return f"{b64_email}.{mac}"
 
     def registrar_opt_out(self, email: str, token: Optional[str] = None) -> dict:
         email_normalizado = (email or "").strip().lower()
-        if not email_normalizado or not token or not hmac.compare_digest(token, self.gerar_optout_token(email_normalizado)):
+        if not email_normalizado or not token:
+            raise ValueError("token de opt-out inválido")
+        # Valida token resolvendo e conferindo se bate com o email
+        email_resolvido = self.resolver_email_por_token(token)
+        if not email_resolvido or email_resolvido != email_normalizado:
             raise ValueError("token de opt-out inválido")
         with self._lock, self._lock_processo():
             self._carregar()
@@ -286,10 +300,42 @@ class FunilStore:
                     lead["opt_out"] = True
                     lead["estado_sequencia"] = "opt_out"
                     afetados += 1
-            if afetados:
-                self._persistir_tudo_locked()
+            self._persistir_tudo_locked()
         logger.info("opt-out registrado: email=%s afetados=%d", mask_email(email), afetados)
         return {"ok": True, "afetados": afetados}
+
+    def resolver_email_por_token(self, token: str) -> Optional[str]:
+        """Resolve um e-mail a partir de um token assinado (b64.hmac)
+        mesmo se ainda não houver lead local."""
+        if not token or "." not in token:
+            return None
+        with self._lock, self._lock_processo():
+            self._carregar()
+            try:
+                b64_email, mac = token.split(".", 1)
+                missing_padding = len(b64_email) % 4
+                if missing_padding:
+                    b64_email += "=" * (4 - missing_padding)
+                email_bytes = base64.urlsafe_b64decode(b64_email.encode("utf-8"))
+                email = email_bytes.decode("utf-8").strip().lower()
+                
+                expected_mac = hmac.new(self.optout_secret, email_bytes, hashlib.sha256).hexdigest()
+                if hmac.compare_digest(mac, expected_mac):
+                    return email
+            except Exception:
+                return None
+        return None
+
+    def marcar_enviado_manualmente(self, submission_id: str, estagio: str) -> None:
+        """Marca um estágio como enviado, útil para reconciliação manual."""
+        with self._lock, self._lock_processo():
+            self._carregar()
+            lead = self._leads.get(submission_id)
+            if not lead:
+                raise ValueError(f"lead {submission_id} não encontrado")
+            lead.setdefault("envios", {})[estagio] = "sent"
+            lead["estado_sequencia"] = _ESTADO_APOS_ESTAGIO[estagio]
+            self._persistir_tudo_locked()
 
     def esta_opt_out(self, email: str) -> bool:
         return (email or "").strip().lower() in self._opt_out_emails
@@ -312,6 +358,9 @@ class FunilStore:
                 contexto = self._construir_contexto(lead)
                 mensagem = render_template(estagio, contexto)
                 if not self.sandbox:
+                    lead.setdefault("envios", {})[estagio] = "sending"
+                    lead.setdefault("envios_timestamps", {})[estagio] = agora.isoformat()
+                    self._persistir_tudo_locked()
                     self.adaptador_envio_real({
                         "destinatario": lead["email"],
                         "mensagem": mensagem,
@@ -319,7 +368,10 @@ class FunilStore:
                         "estagio": estagio,
                     })
 
+                lead.setdefault("envios", {})[estagio] = "sent"
+                lead.setdefault("envios_timestamps", {})[estagio] = agora.isoformat()
                 lead["estado_sequencia"] = _ESTADO_APOS_ESTAGIO[estagio]
+                self._persistir_tudo_locked()
                 enviados.append({"submission_id": lead["submission_id"], "estagio": estagio})
                 logger.info(
                     "estágio enviado (sandbox=%s): teste=%s estagio=%s email=%s",
@@ -330,11 +382,51 @@ class FunilStore:
                 self._persistir_tudo_locked()
         return enviados
 
+    def reconciliar_outbox(self, lease_timeout_segundos: int = 300, agora: Optional[datetime] = None) -> int:
+        """Recupera registros de envio presos no status 'sending' (ex: após queda de processo).
+
+        Nota sobre garantia de entrega: Sem suporte a chaves de idempotência no provedor
+        final (adaptador_envio_real), o limite teórico é 'at-least-once'. A reconciliação
+        minimiza duplicidade ao usar um lease (timeout), mas se um processo cair exatamente
+        após o envio mas antes de persistir o status 'sent', o estágio será reprocessado
+        após o timeout.
+        """
+        agora = agora or datetime.now(timezone.utc)
+        reconciliados = 0
+        with self._lock, self._lock_processo():
+            self._carregar()
+            for lead in self._leads.values():
+                envios = lead.setdefault("envios", {})
+                timestamps = lead.setdefault("envios_timestamps", {})
+                for estagio, status in list(envios.items()):
+                    if status == "sending":
+                        ts_str = timestamps.get(estagio)
+                        if ts_str:
+                            try:
+                                ts = datetime.fromisoformat(ts_str)
+                                if ts.tzinfo is None:
+                                    ts = ts.replace(tzinfo=timezone.utc)
+                                if (agora - ts).total_seconds() > lease_timeout_segundos:
+                                    envios[estagio] = "pending"
+                                    reconciliados += 1
+                            except ValueError:
+                                envios[estagio] = "pending"
+                                reconciliados += 1
+                        else:
+                            # Se não houver timestamp mas está em sending, recupera por precaução
+                            envios[estagio] = "pending"
+                            reconciliados += 1
+            if reconciliados > 0:
+                self._persistir_tudo_locked()
+        return reconciliados
+
     def _proximo_estagio_devido(self, lead: dict, agora: datetime) -> Optional[str]:
         indice = _PROXIMO_INDICE_POR_ESTADO.get(lead["estado_sequencia"])
         if indice is None:
             return None
         estagio = ESTAGIOS[indice]
+        if lead.get("envios", {}).get(estagio, "pending") != "pending":
+            return None
         data_criacao = datetime.fromisoformat(lead["data_criacao"])
         data_devida = data_criacao + timedelta(days=_OFFSET_DIAS[estagio])
         if agora >= data_devida:
@@ -354,7 +446,7 @@ class FunilStore:
             "produto": _NOME_PRODUTO.get(lead["teste"], lead["teste"]),
             "resultado_texto": resultado_texto,
             "cta_url": self.cta_url,
-            "optout_url": f"{self.optout_base_url}/{lead['teste']}/optout?token={quote(self.gerar_optout_token(lead['email']))}",
+            "optout_url": f"{self.optout_base_url}/optout?token={quote(self.gerar_optout_token(lead['email']))}",
         }
 
     def _persistir_tudo(self) -> None:
@@ -365,6 +457,9 @@ class FunilStore:
     def _persistir_tudo_locked(self) -> None:
         temporario = self.path.with_name(f".{self.path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
         with temporario.open("w", encoding="utf-8") as arquivo:
+            for email in sorted(self._opt_out_emails):
+                arquivo.write(json.dumps({"record_type": "opt_out", "email": email}, ensure_ascii=False))
+                arquivo.write("\n")
             for lead in self._leads.values():
                 arquivo.write(json.dumps(lead, ensure_ascii=False))
                 arquivo.write("\n")

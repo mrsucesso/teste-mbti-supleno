@@ -65,7 +65,7 @@
         </div>
         <div class="progress-label" id="progressLabel">Afirmação 1 de 25</div>
       </div>
-      <div class="q-text" id="qText">Texto da afirmação</div>
+      <div class="q-text" id="qText" tabindex="-1">Texto da afirmação</div>
       <div class="likert-scale" id="likertScale" role="radiogroup" aria-labelledby="qText"></div>
       <div class="trait-caption"><span>Discordo totalmente</span><span>Concordo totalmente</span></div>
       <div class="nav-row">
@@ -265,7 +265,8 @@ function startQuiz(){
 function renderQuestion(){
   const qi = order[current];
   const q = QUESTIONS[qi];
-  document.getElementById('qText').textContent = q.t;
+  const qText = document.getElementById('qText');
+  qText.textContent = q.t;
 
   const scale = document.getElementById('likertScale');
   scale.innerHTML = '';
@@ -281,9 +282,15 @@ function renderQuestion(){
     btn.onclick = ()=>selectLikert(qi, v);
     btn.onkeydown = (event)=>{
       if(event.key === 'ArrowRight' || event.key === 'ArrowDown'){
-        event.preventDefault(); scale.children[v % 5].focus();
+        event.preventDefault();
+        const nextValue = v === 5 ? 1 : v + 1;
+        setLikertSelection(qi, nextValue);
+        scale.children[nextValue - 1].focus();
       } else if(event.key === 'ArrowLeft' || event.key === 'ArrowUp'){
-        event.preventDefault(); scale.children[(v + 3) % 5].focus();
+        event.preventDefault();
+        const previousValue = v === 1 ? 5 : v - 1;
+        setLikertSelection(qi, previousValue);
+        scale.children[previousValue - 1].focus();
       }
     };
     scale.appendChild(btn);
@@ -293,6 +300,16 @@ function renderQuestion(){
   document.getElementById('progressFill').style.width = `${(current/QUESTIONS.length)*100}%`;
   document.querySelector('.progress-track').setAttribute('aria-valuenow', String(current + 1));
   document.getElementById('backBtn').style.visibility = current===0 ? 'hidden' : 'visible';
+  qText.focus({preventScroll:true});
+}
+
+function setLikertSelection(qi, value){
+  answers[qi] = value;
+  Array.from(document.getElementById('likertScale').children).forEach((option, index)=>{
+    const selected = index + 1 === value;
+    option.setAttribute('aria-checked', selected ? 'true' : 'false');
+    option.setAttribute('tabindex', selected ? '0' : '-1');
+  });
 }
 
 function selectLikert(qi, value){

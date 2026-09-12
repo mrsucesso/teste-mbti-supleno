@@ -36,6 +36,38 @@ class TestFunilFrontend(unittest.TestCase):
             self.assertIn("SANDBOX_MODE", text, page.name)
             self.assertRegex(text, r"SANDBOX_MODE\s*=\s*SUPLENO_CONFIG\.SANDBOX_MODE\s*!==\s*false", page.name)
 
+    def test_each_new_question_is_focusable_and_focused_for_announcement(self):
+        for page in PAGES:
+            text = page.read_text(encoding="utf-8")
+            self.assertIn('id="qText" tabindex="-1"', text, page.name)
+            render = _extract_function(text, "renderQuestion")
+            self.assertIn("qText.focus({preventScroll:true})", render, page.name)
+
+    def test_tracos_arrows_select_radio_and_update_aria_checked(self):
+        text = (ROOT / "tracos/index.html").read_text(encoding="utf-8")
+        render = _extract_function(text, "renderQuestion")
+        self.assertIn("setLikertSelection(qi,", render)
+        selection = _extract_function(text, "setLikertSelection")
+        self.assertIn("aria-checked", selection)
+        self.assertIn("answers[qi] = value", selection)
+
+    def test_all_result_pages_have_one_main_h1(self):
+        pages = sorted((ROOT / "tipos/resultados").glob("*.html"))
+        self.assertEqual(len(pages), 32)
+        for page in pages:
+            text = page.read_text(encoding="utf-8")
+            main = text[text.index('<main id="conteudo"'):text.index("</main>")]
+            self.assertEqual(len(re.findall(r"<h1\b", main)), 1, page.name)
+
+    def test_all_products_share_one_configurable_production_backend_contract(self):
+        for product in ("tipos", "estilos", "tracos"):
+            config = (ROOT / product / "config.example.js").read_text(encoding="utf-8")
+            self.assertRegex(config, r'WEBHOOK_URL:\s*""')
+            page = (ROOT / product / "index.html").read_text(encoding="utf-8")
+            self.assertIn("SUPLENO_CONFIG.WEBHOOK_URL", page)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("backend de produção compartilhado", readme)
+
 
 def _extract_function(text, name):
     start = text.index(f"function {name}(")

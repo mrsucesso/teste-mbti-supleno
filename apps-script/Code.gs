@@ -1,5 +1,5 @@
 /**
- * TESTE DE PERFIL SUPLENO — backend em Google Apps Script
+ * TESTES SUPLENO — backend compartilhado em Google Apps Script
  * ---------------------------------------------------------
  * O que este script faz quando alguém termina o teste:
  *   1) Grava uma linha na planilha "Leads MBTI" (Nome, E-mail, Sigla, Data, WhatsApp)
@@ -52,9 +52,8 @@ const SITE_BASE_URL = "https://testes.supleno.com";
 // envio. Ele fica visível no código-fonte do site (qualquer pessoa pode lê-lo),
 // então NÃO protege contra um atacante determinado — apenas filtra bots
 // genéricos que disparam POSTs para a URL do Web App sem ter visto o site.
-// Deixe em branco ("") para aceitar qualquer envio (modo aberto, usado em
-// homologação). Antes de ir para produção, defina o MESMO valor aqui e em
-// config.js (ver config.example.js) para reduzir abuso casual.
+// Configure o MESMO valor em cada config.js. Se estiver ausente, o backend
+// recusa a captura: o token continua sendo apenas defesa complementar.
 // Configure no Script Properties; nunca deixe um relay público em produção.
 const ACCESS_TOKEN = PropertiesService.getScriptProperties().getProperty("ACCESS_TOKEN") || "";
 
@@ -398,27 +397,11 @@ function doPost(e) {
       return errorResponse();
     }
 
-    if (!checkRateLimit(validated.email)) {
-      return errorResponse();
-    }
-
     const submissionId = (data.submission_id || "").toString().trim();
     if (!submissionId || submissionId.length > 128) {
       return errorResponse();
     }
-    const idempotencyKey = "submission_" + Utilities.base64EncodeWebSafe(
-      Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, submissionId)
-    );
-    const props = PropertiesService.getScriptProperties();
-    if (props.getProperty(idempotencyKey)) {
-      return jsonResponse({ ok: true, duplicate: true });
-    }
-
-    appendLead(validated.name, validated.email, validated.whatsapp, validated.sigla);
-    sendResultEmail(validated.name, validated.email, validated.code, validated.gender);
-    props.setProperty(idempotencyKey, new Date().toISOString());
-
-    return jsonResponse({ ok: true });
+    return processSubmissionAtomically(validated, submissionId);
   } catch (err) {
     // Nunca expor a exceção crua ao cliente — só no log do servidor.
     Logger.log("doPost error: " + err);
@@ -432,20 +415,105 @@ function doPost(e) {
  * code + gender, para impedir dados inconsistentes ou injetados na planilha.
  */
 function validateInput(data) {
+  const teste = (data.teste || "").toString().trim().toLowerCase();
   const name = (data.name || "").toString().trim();
   const email = (data.email || "").toString().trim();
   const whatsapp = (data.whatsapp || "").toString().trim();
-  const code = (data.code || "").toString().trim().toUpperCase();
-  const gender = (data.gender || "").toString().trim().toUpperCase();
+  let code = (data.code || "").toString().trim().toUpperCase();
+  let gender = (data.gender || "").toString().trim().toUpperCase();
 
   if (!NAME_PATTERN.test(name)) return null;
   if (!EMAIL_PATTERN.test(email)) return null;
   if (whatsapp && !WHATSAPP_PATTERN.test(whatsapp)) return null;
-  if (!PROFILES[code]) return null;
-  if (VALID_GENDERS.indexOf(gender) === -1) return null;
+  if (["tipos", "estilos", "tracos"].indexOf(teste) === -1) return null;
+  if (!validateScores(teste, data.pontuacoes)) return null;
 
-  const sigla = code + "-" + gender;
-  return { name, email, whatsapp, code, gender, sigla };
+  if (teste === "tipos") {
+    if (!PROFILES[code]) return null;
+    if (VALID_GENDERS.indexOf(gender) === -1) return null;
+    const calculatedCode = (data.pontuacoes.E >= data.pontuacoes.I ? "E" : "I") +
+      (data.pontuacoes.S >= data.pontuacoes.N ? "S" : "N") +
+      (data.pontuacoes.T >= data.pontuacoes.F ? "T" : "F") +
+      (data.pontuacoes.J >= data.pontuacoes.P ? "J" : "P");
+    if (code !== calculatedCode) return null;
+    if (!data.resultado || data.resultado.code !== code || data.resultado.gender !== gender) return null;
+  } else if (teste === "estilos") {
+    code = (data.resultado || "").toString().trim().toUpperCase();
+    gender = "";
+    if (["D", "I", "S", "C"].indexOf(code) === -1) return null;
+    const expectedStyle = ["D", "I", "S", "C"].reduce((best, key) =>
+      data.pontuacoes[key] > data.pontuacoes[best] ? key : best, "D");
+    if (code !== expectedStyle) return null;
+  } else {
+    code = "TRACOS";
+    gender = "";
+    if (!data.resultado || typeof data.resultado !== "object") return null;
+    const sameScores = ["SO", "AN", "OM", "TE", "CO"].every(key =>
+      data.resultado[key] && data.resultado[key].sum === data.pontuacoes[key].sum &&
+      data.resultado[key].percent === data.pontuacoes[key].percent &&
+      data.resultado[key].faixa === data.pontuacoes[key].faixa);
+    if (!sameScores) return null;
+  }
+
+  let sigla;
+  if (teste === "tipos") {
+    sigla = code + "-" + gender;
+  } else {
+    sigla = teste.toUpperCase() + "-" + code;
+  }
+  return { name, email, whatsapp, code, gender, sigla, teste, resultado: data.resultado, pontuacoes: data.pontuacoes };
+}
+
+function validateScores(teste, scores) {
+  if (!scores || typeof scores !== "object" || Array.isArray(scores)) return false;
+  const expected = teste === "tipos" ? ["E", "I", "S", "N", "T", "F", "J", "P"]
+    : teste === "estilos" ? ["D", "I", "S", "C"] : ["SO", "AN", "OM", "TE", "CO"];
+  if (Object.keys(scores).sort().join(",") !== expected.slice().sort().join(",")) return false;
+  const valuesAreValid = expected.every(key => {
+    const value = scores[key];
+    if (teste !== "tracos") {
+      const limit = teste === "tipos" ? 7 : 24;
+      return Number.isInteger(value) && value >= 0 && value <= limit;
+    }
+    const expectedPercent = value && Number.isInteger(value.sum)
+      ? Math.round(((value.sum - 5) / 20) * 100) : -1;
+    const expectedRange = expectedPercent < 34 ? "baixo" : expectedPercent < 67 ? "medio" : "alto";
+    return value && typeof value === "object" &&
+      Number.isInteger(value.sum) && value.sum >= 5 && value.sum <= 25 &&
+      value.percent === expectedPercent && value.faixa === expectedRange;
+  });
+  if (!valuesAreValid) return false;
+  if (teste === "tipos") {
+    return scores.E + scores.I === 7 && scores.S + scores.N === 7 &&
+      scores.T + scores.F === 7 && scores.J + scores.P === 7;
+  }
+  if (teste === "estilos") return expected.reduce((sum, key) => sum + scores[key], 0) === 24;
+  return true;
+}
+
+/** Mantém consulta, efeitos e marca de idempotência sob um único lock. */
+function processSubmissionAtomically(validated, submissionId) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return errorResponse();
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const idempotencyKey = "submission_" + Utilities.base64EncodeWebSafe(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, submissionId)
+    );
+    if (props.getProperty(idempotencyKey)) {
+      return jsonResponse({ ok: true, duplicate: true });
+    }
+    if (!checkRateLimitLocked(validated.email, props)) return errorResponse();
+    props.setProperty(idempotencyKey, JSON.stringify({ status: "processing", started_at: new Date().toISOString() }));
+    appendLead(validated.name, validated.email, validated.whatsapp, validated.sigla,
+      validated.teste, validated.resultado, validated.pontuacoes);
+    sendResultEmail(validated.name, validated.email, validated.code, validated.gender,
+      validated.teste, validated.resultado, validated.pontuacoes);
+    props.setProperty(idempotencyKey, JSON.stringify({ status: "done", finished_at: new Date().toISOString() }));
+    return jsonResponse({ ok: true });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
@@ -464,26 +532,25 @@ function checkRateLimit(email) {
   }
   try {
     const props = PropertiesService.getScriptProperties();
-    const now = Date.now();
-
-    const globalKey = "rl_global_" + Math.floor(now / 60000);
-    const globalCount = Number(props.getProperty(globalKey) || "0") + 1;
-    if (globalCount > RATE_LIMIT_GLOBAL_PER_MINUTE) {
-      return false;
-    }
-    props.setProperty(globalKey, String(globalCount));
-
-    const emailKey = "rl_email_" + email.toLowerCase() + "_" + Math.floor(now / 86400000);
-    const emailCount = Number(props.getProperty(emailKey) || "0") + 1;
-    if (emailCount > RATE_LIMIT_PER_EMAIL_PER_DAY) {
-      return false;
-    }
-    props.setProperty(emailKey, String(emailCount));
-
-    return true;
+    return checkRateLimitLocked(email, props);
   } finally {
     lock.releaseLock();
   }
+}
+
+function checkRateLimitLocked(email, props) {
+  const now = Date.now();
+  const globalKey = "rl_global_" + Math.floor(now / 60000);
+  const globalCount = Number(props.getProperty(globalKey) || "0") + 1;
+  if (globalCount > RATE_LIMIT_GLOBAL_PER_MINUTE) return false;
+
+  const emailKey = "rl_email_" + email.toLowerCase() + "_" + Math.floor(now / 86400000);
+  const emailCount = Number(props.getProperty(emailKey) || "0") + 1;
+  if (emailCount > RATE_LIMIT_PER_EMAIL_PER_DAY) return false;
+
+  props.setProperty(globalKey, String(globalCount));
+  props.setProperty(emailKey, String(emailCount));
+  return true;
 }
 
 function getSheet() {
@@ -493,7 +560,7 @@ function getSheet() {
     sheet = ss.insertSheet(SHEET_NAME);
   }
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["Data", "Nome", "E-mail", "Sigla", "WhatsApp"]);
+    sheet.appendRow(["Data", "Nome", "E-mail", "Sigla", "WhatsApp", "Produto", "Resultado", "Pontuações"]);
   }
   return sheet;
 }
@@ -511,14 +578,17 @@ function sanitizeForSheet(value) {
   return str;
 }
 
-function appendLead(name, email, whatsapp, sigla) {
+function appendLead(name, email, whatsapp, sigla, teste, resultado, pontuacoes) {
   const sheet = getSheet();
   sheet.appendRow([
     new Date(),
     sanitizeForSheet(name),
     sanitizeForSheet(email),
     sanitizeForSheet(sigla),
-    sanitizeForSheet(whatsapp)
+    sanitizeForSheet(whatsapp),
+    sanitizeForSheet(teste),
+    sanitizeForSheet(JSON.stringify(resultado)),
+    sanitizeForSheet(JSON.stringify(pontuacoes))
   ]);
 }
 
@@ -532,7 +602,20 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-function sendResultEmail(name, email, code, gender) {
+function sendResultEmail(name, email, code, gender, teste, resultado, pontuacoes) {
+  if (teste !== "tipos") {
+    const productName = teste === "estilos" ? "Supleno Estilos" : "Supleno Traços";
+    const safeName = escapeHtml(name);
+    const safeResult = escapeHtml(JSON.stringify(resultado));
+    const safeScores = escapeHtml(JSON.stringify(pontuacoes));
+    MailApp.sendEmail({
+      to: email,
+      subject: `Seu resultado no ${productName}`,
+      htmlBody: `<h1>${productName}</h1><p>Olá, ${safeName}.</p><p>Resultado: ${safeResult}</p><p>Pontuações: ${safeScores}</p>`,
+      name: "Testes Supleno"
+    });
+    return;
+  }
   const gk = gender === "F" ? "f" : "m";
   const p = PROFILES[code];
   const typeName = p["name_" + gk];
@@ -591,6 +674,9 @@ function testeManual() {
         whatsapp: "",
         code: "INTJ",
         gender: "F",
+        teste: "tipos",
+        resultado: { code: "INTJ", gender: "F" },
+        pontuacoes: { E: 2, I: 5, S: 3, N: 4, T: 4, F: 3, J: 5, P: 2 },
         consentimento: true,
         submission_id: "teste-manual-" + Date.now(),
         website: "", // honeypot — deve ficar sempre vazio

@@ -23,13 +23,13 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 - `assets/style.css` — estilo compartilhado
 - `assets/nav.js` — comportamento do menu responsivo compartilhado
 - `assets/personagens/` — imagens dos personagens
-- `apps-script/Code.gs` — referência de backend do Supleno Tipos; Supleno Estilos e Supleno Traços exigem endpoints próprios, com validação de seus contratos, antes de produção
+- `apps-script/Code.gs` — backend de produção compartilhado e configurável dos três produtos; valida `teste`, `resultado` e `pontuacoes` conforme o contrato de cada experiência
 - `PROMPTS-IMAGENS.md` — prompts para criar as ilustrações
 
 ## Configuração necessária antes da produção
 
-1. Definir e implantar os backends de captura de cada produto do Supleno. Não apontar o Supleno Estilos para o endpoint do Supleno Tipos: os códigos e o contrato são diferentes.
-2. Informar a URL publicada em `WEBHOOK_URL` no `config.js` local (a partir de `config.example.js`). Para o Supleno Estilos, use `estilos/config.example.js` e `estilos/config.js`.
+1. Implantar uma cópia de `apps-script/Code.gs` como backend compartilhado. O mesmo endpoint valida os contratos distintos de Tipos, Estilos e Traços.
+2. Informar essa URL publicada em `WEBHOOK_URL` no `config.js` local de cada produto (a partir de seu `config.example.js`). Sem URL, todos permanecem no modo seguro e não transmitem dados.
 3. Confirmar `CTA_URL` e `SITE_BASE_URL` no frontend e no backend.
 4. Criar as imagens e substituir todos os espaços reservados.
 5. Configurar origem, UTM, consentimento e métricas.
@@ -73,8 +73,8 @@ Em homologação sintética, deixe os tokens vazios e use apenas dados fictício
 `backend/funil_store.py` é um adaptador local, em Python padrão (stdlib), que
 serve como referência única do contrato de captura e nutrição de leads
 compartilhado pelos três produtos (Supleno Tipos, Supleno Estilos e Supleno
-Traços). Ele **não é o backend de produção** — isso continua sendo um Apps
-Script por produto, conforme a seção "Rotas e estrutura" — mas existe para
+Traços). Ele **não é o backend de produção** — o backend implantável é o Apps
+Script compartilhado da seção "Rotas e estrutura" — mas existe para
 que o contrato (campos persistidos, idempotência e a sequência de nutrição)
 seja definido uma única vez e validado por TDD, em vez de cada backend por
 produto reinventar essas regras de forma divergente.
@@ -91,17 +91,25 @@ Contrato validado por `tests/test_funil_backend.py`:
   `utm_medium`, `utm_campaign`), `origem`, data de criação, consentimento e
   o estado da sequência (`pendente` → `imediato_enviado` → `d1_enviado` →
   `d3_enviado` → `d5_enviado` → `concluido`, ou `opt_out`) ficam em
-  `leads.jsonl` (um lead por linha).
+  `leads.jsonl`. Opt-outs sem lead também são registros duráveis no arquivo.
 - **Idempotência:** reenvios com o mesmo `submission_id` não duplicam o
   lead; retentativas sem `submission_id` no mesmo dia (mesmo e-mail e mesmo
   teste) também são deduplicadas — no dia seguinte já contam como uma nova
   tentativa (reteste legítimo).
-- **Sequência imediato/D1/D3/D5/D7:** `processar_fila()` envia (de forma
-  simulada, em sandbox) no máximo um estágio vencido por lead a cada
-  chamada, na ordem correta, e nunca reenvia um estágio já processado.
-- **Opt-out:** `registrar_opt_out(email, token)` exige token HMAC assinado e
-  marca os leads existentes; `esta_opt_out(email)` consulta o estado. Todo
-  template em `TEMPLATES` inclui `{optout_url}` sem expor o e-mail na URL.
+- **Sequência imediato/D1/D3/D5/D7:** cada estágio nasce como `pending`. Antes
+  de chamar o provedor real, o estado `sending` é persistido e sincronizado;
+  após sucesso, passa a `sent`. Uma queda em `sending` não causa reenvio
+  automático: a entrega fica incerta para reconciliação manual.
+- **Limite de exactly-once:** sem uma chave idempotente reconhecida pelo
+  provedor, não existe garantia ponta a ponta de entrega exatamente uma vez.
+  O estado `sending` prefere evitar duplicidade após queda, assumindo o risco
+  explícito de uma mensagem incerta não ser reenviada automaticamente.
+- **Opt-out:** o token HMAC opaco resolve a identidade no servidor, sem e-mail
+  na URL. `registrar_opt_out_por_token(token)` persiste a supressão mesmo sem
+  lead anterior, e novos cadastros do mesmo e-mail ficam bloqueados até existir
+  uma política explícita de reconsentimento. `backend/optout_server.py` expõe
+  a rota executável `GET /optout?token=...`; exige `SUPLENO_OPTOUT_SECRET`
+  estável e nunca aceita o e-mail como parâmetro.
 - **Sandbox obrigatório:** `SANDBOX_MODE = True` por padrão. A saída real só
   pode ser habilitada explicitamente por configuração. Sem um
   `adaptador_envio_real` explícito, `FunilStore(sandbox=False, ...)`
@@ -110,12 +118,18 @@ Contrato validado por `tests/test_funil_backend.py`:
   e-mail brutos nunca aparecem no log do módulo (`backend.funil_store`).
 
 Este módulo é standalone (não é chamado pelos `index.html` dos três
-produtos, que continuam enviando ao `WEBHOOK_URL` configurado por produto)
-e serve para homologar o contrato com dados sintéticos antes de portar as
-mesmas regras para cada Apps Script de produção. Rode com:
+produtos, que enviam ao mesmo `WEBHOOK_URL` configurável) e serve para
+homologar o contrato com dados sintéticos. Rode com:
 
 ```bash
 python3 -m unittest tests/test_funil_backend.py -v
+```
+
+Para homologar a rota local de cancelamento, use apenas dados sintéticos:
+
+```bash
+SUPLENO_OPTOUT_SECRET='segredo-sintetico-de-homologacao' \
+  python3 -m backend.optout_server --data /tmp/supleno-leads.jsonl --port 8080
 ```
 
 Os testes reproduzíveis (suíte completa) são executados com:
