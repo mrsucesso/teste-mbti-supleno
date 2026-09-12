@@ -12,12 +12,18 @@
 <meta property="og:description" content="Descubra seu tipo de personalidade entre os 16 perfis do Supleno Tipos, com versão masculina e feminina.">
 <meta property="og:url" content="https://testes.supleno.com/tipos/">
 <meta property="og:locale" content="pt_BR">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://testes.supleno.com/assets/og/tipos.svg">
+<meta property="og:image:type" content="image/svg+xml">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Supleno Tipos — Teste de Perfil de Personalidade">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Supleno Tipos — Teste de Perfil de Personalidade">
 <meta name="twitter:description" content="Descubra seu tipo de personalidade entre os 16 perfis do Supleno Tipos.">
+<meta name="twitter:image" content="https://testes.supleno.com/assets/og/tipos.svg">
 <link rel="stylesheet" href="../assets/style.css">
 </head>
-<body>
+<body data-produto="tipos">
 <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 <nav class="site-nav" aria-label="Navegação da família Testes Supleno">
   <a class="nav-brand" href="../">
@@ -133,6 +139,7 @@
 -->
 <script src="../assets/nav.js" defer></script>
 <script src="config.js" onerror="window.SUPLENO_CONFIG = window.SUPLENO_CONFIG || {}; console.info('config.js não encontrado — rodando em modo aberto/local (ver README > Configuração).');"></script>
+<script src="../assets/funil-analytics.js" defer></script>
 <script>
 /* ================= CONFIGURAÇÃO =================
    Valores reais ficam em config.js (gitignored, ver config.example.js).
@@ -183,6 +190,7 @@ function startQuiz(){
   current = 0;
   answers = new Array(QUESTIONS.length).fill(null);
   showScreen('screen-quiz');
+  SuplenoFunil.trackInicio('tipos', {total_perguntas: QUESTIONS.length});
   renderQuestion();
 }
 
@@ -206,6 +214,7 @@ function renderQuestion(){
 
 function selectOption(qi, pole){
   answers[qi] = pole;
+  SuplenoFunil.trackProgresso('tipos', {pergunta: current + 1, total_perguntas: QUESTIONS.length});
   if(current < QUESTIONS.length - 1){ current++; renderQuestion(); }
   else { finishQuiz(); }
 }
@@ -217,6 +226,7 @@ function finishQuiz(){
   answers.forEach(p=>{ if(p) scores[p]++; });
   document.getElementById('progressFill').style.width = '100%';
   document.querySelector('.progress-track').setAttribute('aria-valuenow', String(QUESTIONS.length));
+  SuplenoFunil.trackConclusao('tipos', {total_perguntas: QUESTIONS.length});
   showResult(computeType(), gender);
 }
 
@@ -280,6 +290,7 @@ function validateLeadForm(){
 
 function submitLead(e){
   e.preventDefault();
+  SuplenoFunil.trackCaptura('tipos', {consentimento: document.getElementById('leadConsent').checked}, document.getElementById('leadConsent').checked);
 
   // Honeypot: se o campo invisível foi preenchido, é quase certamente um bot.
   // Fingimos sucesso e não fazemos nenhuma chamada de rede real.
@@ -348,6 +359,7 @@ function showResult(code, g){
   document.getElementById('resDesc').textContent = desc;
   document.getElementById('resFullLink').href = `resultados/${code.toLowerCase()}-${gk}.html`;
   showScreen('screen-result');
+  SuplenoFunil.trackResultado('tipos', {resultado: code, genero: g});
 }
 
 function restartQuiz(){

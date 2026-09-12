@@ -36,6 +36,24 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 6. Executar `python3 scripts/validate-content.py`.
 7. Homologar o fluxo completo com dados sintéticos.
 
+### Métricas do funil
+
+`assets/funil-analytics.js` é o adaptador compartilhado dos três testes. Ele
+registra localmente, sem rede, os eventos `funil_inicio`, `funil_progresso`,
+`funil_conclusao`, `funil_resultado`, `funil_captura` e `funil_cta`. Os payloads
+contêm somente o produto, a etapa, a quantidade de perguntas e códigos/faixas
+do resultado; nunca incluem nome, e-mail, WhatsApp ou respostas individuais.
+
+Por padrão, as métricas permanecem desligadas. Só há envio para GA4 ou Meta
+Pixel quando `ANALYTICS.ENABLED` for explicitamente `true`, um ID correspondente
+estiver confirmado no `config.js` local e o navegador não tiver ativado “Não
+rastrear”. O evento de captura exige também o checkbox de consentimento. IDs
+reais não devem ser commitados nem preenchidos neste repositório.
+
+Para homologar sem gasto, consulte `window.SuplenoFunil._getEventLog()` no
+console do navegador: os eventos terão `dispatched: false`. A implementação
+não injeta scripts nem realiza requisições nessa configuração segura.
+
 Enquanto `WEBHOOK_URL` estiver vazio, o teste funciona normalmente, o resultado aparece imediatamente e o formulário opcional não grava leads nem envia resultados.
 
 ## Configuração e segurança

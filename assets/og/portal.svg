@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-labelledby="ogTitle ogDesc">
+  <title id="ogTitle">Testes Supleno</title>
+  <desc id="ogDesc">Ilustração de identidade original do portal Testes Supleno, com três emblemas geométricos representando Supleno Tipos, Supleno Estilos e Supleno Traços.</desc>
+  <defs>
+    <linearGradient id="bg-portal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#163736"/>
+      <stop offset="100%" stop-color="#1F4B4C"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg-portal)"/>
+  <circle cx="230" cy="315" r="92" fill="#C15A38" opacity="0.9"/>
+  <polygon points="600,225 692,315 600,405 508,315" fill="#D9A441" opacity="0.92"/>
+  <circle cx="970" cy="315" r="92" fill="#FAF6F1" opacity="0.15"/>
+  <circle cx="970" cy="315" r="60" fill="#FAF6F1" opacity="0.9"/>
+  <text x="90" y="530" font-family="-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="64" font-weight="800" fill="#FAF6F1">Testes Supleno</text>
+  <text x="90" y="575" font-family="-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="26" font-weight="600" fill="#D9A441">Tipos · Estilos · Traços — autoconhecimento</text>
+</svg>
