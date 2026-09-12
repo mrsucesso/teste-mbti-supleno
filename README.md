@@ -1,46 +1,64 @@
-# Teste de Perfil — Método Supleno
+# Testes Supleno — Supleno Tipos
 
-Site estático (HTML/CSS/JS puro, sem build) do teste de personalidade de 28 perguntas,
-com resultado por gênero (16 tipos x masculino/feminino = 32 páginas).
+Site estático em HTML, CSS e JavaScript do **Supleno Tipos**, o primeiro produto da família **Testes Supleno**.
+
+O teste possui 28 perguntas, 16 tipos e páginas de resultado com variação de título no masculino e feminino.
+
+## Identidade do produto
+
+- **Portal:** `https://testes.supleno.com`
+- **Teste:** `https://testes.supleno.com/tipos`
+- **Marca:** Supleno
+- **Objetivo:** aquisição, reaquecimento e segmentação de leads do Supleno
+
+Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos, bases ou automações de outros projetos.
 
 ## Estrutura
-- `index.html` — o teste (seleção de gênero → 28 perguntas → captura de lead → resultado simples)
-- `resultados/{tipo}-{m|f}.html` — 32 páginas de resultado completo (uma por tipo/gênero)
+
+- `index.html` — introdução, 28 perguntas, captura e resultado resumido
+- `resultados/{tipo}-{m|f}.html` — 32 páginas de resultado
 - `assets/style.css` — estilo compartilhado
-- `assets/personagens/` — (crie esta pasta) imagens dos personagens geradas via `PROMPTS-IMAGENS.md`
-- `apps-script/Code.gs` — backend (Google Apps Script) que grava o lead na planilha e envia o e-mail com o resultado completo
-- `PROMPTS-IMAGENS.md` — prompts prontos para gerar as imagens dos 16 personagens
+- `assets/personagens/` — imagens dos personagens
+- `apps-script/Code.gs` — referência de backend para gravação e envio do resultado
+- `PROMPTS-IMAGENS.md` — prompts para criar as ilustrações
 
-## Antes de publicar — 3 coisas para configurar
+## Configuração necessária antes da produção
 
-1. **`index.html`**: troque `CTA_URL` pela URL real do botão final, e `WEBHOOK_URL` pela URL do
-   Apps Script depois de implantá-lo (ver `apps-script/Code.gs`, instruções no topo do arquivo).
-2. **`apps-script/Code.gs`**: troque `CTA_URL` e `SITE_BASE_URL` (mesma URL onde o site ficar publicado).
-3. **`assets/personagens/`**: gere as 16 imagens com os prompts de `PROMPTS-IMAGENS.md` e troque o
-   placeholder `.char-img` em cada página de `resultados/` por uma tag `<img>` (instruções no próprio
-   arquivo de prompts).
+1. Definir e implantar o backend de captura do Supleno.
+2. Informar a URL publicada em `WEBHOOK_URL` no `index.html`.
+3. Confirmar `CTA_URL` e `SITE_BASE_URL` no frontend e no backend.
+4. Criar as imagens e substituir todos os espaços reservados.
+5. Configurar origem, UTM, consentimento e métricas.
+6. Executar `python3 scripts/validate-content.py`.
+7. Homologar o fluxo completo com dados sintéticos.
 
-## Deploy no Cloudflare Pages (sucesso.com.br/testes/mbti)
+Enquanto `WEBHOOK_URL` estiver vazio, o formulário não grava leads nem envia resultados.
 
-O código já está no GitHub. Falta conectar no painel da Cloudflare (não tenho uma ferramenta
-que crie o projeto Pages automaticamente por API):
+## Governança editorial
 
-1. Acesse https://dash.cloudflare.com → conta **Mauricio@sucesso.com.br's Account**
-2. Menu **Workers & Pages** → **Create** → aba **Pages** → **Connect to Git**
-3. Selecione o repositório no GitHub (mrsucesso) que subi para você
-4. Build settings: **Framework preset: None**, **Build command: (vazio)**,
-   **Build output directory: `/`** (é só HTML estático, não precisa build)
-5. Deploy — você ganha uma URL tipo `seu-projeto.pages.dev`
+- Não usar construções como `energizado(a)` ou `sozinho(a)`.
+- Não usar neutralização artificial com `x`, `@` ou equivalentes.
+- Reescrever a frase em português natural quando houver marcação desnecessária de gênero.
+- Não usar “energia” como sinônimo de disposição, entusiasmo, empolgação, ânimo ou interesse.
+- Em tipologia, preferir “direcionamento da atenção” ou “preferência de interação”.
+- Resultado descreve tendências; não é diagnóstico nem identidade fixa.
 
-### Para ficar em `sucesso.com.br/testes/mbti` (caminho, não subdomínio)
+## Publicação
 
-Como `sucesso.com.br` já está no Cloudflare mas o site principal provavelmente é servido por
-outra hospedagem (histórico de DNS aponta para Hostgator), colocar o teste exatamente nesse
-caminho exige um **Cloudflare Worker de proxy** (rota `sucesso.com.br/testes/mbti*` → seu
-projeto Pages) — não é algo que dá pra fazer só com Pages. Duas opções:
+O protótipo está disponível no GitHub Pages:
 
-- **Mais simples e sem risco pro site principal**: usar um subdomínio dedicado, ex.
-  `testes.sucesso.com.br` — aí é só adicionar o domínio customizado na tela do projeto Pages
-  (a Cloudflare cria o CNAME sozinha). Eu consigo fazer essa parte de DNS pra você se topar.
-- **Caminho exato como pedido**: preciso saber onde o `sucesso.com.br` está hospedado hoje
-  (WordPress? outro Pages/Workers?) pra montar a rota do Worker sem quebrar o resto do site.
+- `https://mrsucesso.github.io/teste-mbti-supleno/`
+
+A produção planejada ficará em:
+
+- `https://testes.supleno.com/tipos`
+
+A publicação em produção, a alteração de DNS e qualquer comunicação externa exigem aprovação de Mauricio.
+
+## Fonte canônica
+
+As decisões de produto, linguagem e cronograma ficam no Notion:
+
+- **Testes Supleno — Produto, Cronograma e Governança Editorial**
+
+Em caso de divergência: **Notion decide → GitHub implementa → produção valida.**

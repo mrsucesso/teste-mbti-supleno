@@ -208,7 +208,7 @@ Ilustração vetorial em flat design de um personagem-mascote, estilo moderno, a
 
 📋 **PROMPT**
 ```
-Ilustração vetorial em flat design de um personagem-mascote, estilo moderno, acolhedor e minimalista, traços simples e sombras suaves. Paleta de cores restrita a: terracota (#C15A38), verde-petróleo (#1F4B4C), dourado (#D9A441) e bege claro (#FAF6F1) de fundo. Expressão facial amigável e confiante. Enquadramento de corpo inteiro ou três quartos, personagem centralizado, fundo minimalista e temático (poucos elementos, sem texto, sem letras, sem logotipos). Composição quadrada, limpa, adequada para usar como ícone/avatar de perfil. O personagem principal é um guepardo antropomórfico em pleno movimento, com uma prancha de skate e faíscas de energia ao redor. Tipo de personalidade: ESTP — "O Realizador Dinâmico / A Realizadora Dinâmica" do Método Supleno.
+Ilustração vetorial em flat design de um personagem-mascote, estilo moderno, acolhedor e minimalista, traços simples e sombras suaves. Paleta de cores restrita a: terracota (#C15A38), verde-petróleo (#1F4B4C), dourado (#D9A441) e bege claro (#FAF6F1) de fundo. Expressão facial amigável e confiante. Enquadramento de corpo inteiro ou três quartos, personagem centralizado, fundo minimalista e temático (poucos elementos, sem texto, sem letras, sem logotipos). Composição quadrada, limpa, adequada para usar como ícone/avatar de perfil. O personagem principal é um guepardo antropomórfico em pleno movimento, com uma prancha de skate e linhas de movimento ao redor. Tipo de personalidade: ESTP — "O Realizador Dinâmico / A Realizadora Dinâmica" do Método Supleno.
 ```
 ⚙️ **PARÂMETROS RECOMENDADOS**
 - ChatGPT (GPT Image): tamanho 1024x1024, qualidade alta (high)

@@ -4,8 +4,8 @@
  * O que este script faz quando alguém termina o teste:
  *   1) Grava uma linha na planilha "Leads MBTI" (Nome, E-mail, Sigla, Data, WhatsApp)
  *   2) Envia um e-mail para o lead com o resultado COMPLETO (descrição,
- *      pontos fortes e caminhos de desenvolvimento) usando a conta
- *      mauricio@sucesso.com.br (a mesma dona da planilha)
+ *      pontos fortes e caminhos de desenvolvimento) usando a conta Google
+ *      responsável pela implantação
  *
  * COMO INSTALAR (uma vez só):
  *   1. Abra a planilha "Leads MBTI" (dentro da pasta "Testes de Perfil" no Drive)
@@ -13,7 +13,7 @@
  *   3. Apague o conteúdo padrão e cole este arquivo inteiro
  *   4. Clique em "Implantar" > "Nova implantação"
  *      - Tipo: "App da Web"
- *      - Executar como: "Eu" (mauricio@sucesso.com.br)
+ *      - Executar como: "Eu"
  *      - Quem pode acessar: "Qualquer pessoa"
  *   5. Autorize as permissões pedidas (Planilhas + Gmail)
  *   6. Copie a URL do app da web gerada e cole em WEBHOOK_URL no index.html
@@ -32,10 +32,10 @@ const SHEET_NAME = "Leads MBTI";
 const FROM_NAME = "Método Supleno";
 
 // Link do botão final do e-mail
-const CTA_URL = "https://suplenamente.com.br"; // TODO: ajustar
+const CTA_URL = "https://supleno.com"; // TODO: ajustar
 
 // Base do site publicado (para montar o link da página completa no e-mail)
-const SITE_BASE_URL = "https://sucesso.com.br/testes/mbti"; // TODO: ajustar se o caminho final for diferente
+const SITE_BASE_URL = "https://mrsucesso.github.io/teste-mbti-supleno"; // trocar pelo domínio final após DNS e publicação
 
 /* ============================================================
    DADOS DOS 16 TIPOS (mesmo conteúdo do site, em formato Apps Script)
@@ -44,8 +44,8 @@ const PROFILES = {
   "INTJ": {
     "name_m": "O Planejador Estratégico",
     "name_f": "A Planejadora Estratégica",
-    "desc_m": "Você enxerga sistemas e padrões onde outros veem eventos isolados. Prefere construir uma visão de longo prazo e trilhar o caminho até ela com autonomia e método, sendo seletivo com sua energia social.",
-    "desc_f": "Você enxerga sistemas e padrões onde outras pessoas veem eventos isolados. Prefere construir uma visão de longo prazo e trilhar o caminho até ela com autonomia e método, sendo seletiva com sua energia social.",
+    "desc_m": "Você enxerga sistemas e padrões onde outros veem eventos isolados. Prefere construir uma visão de longo prazo e trilhar o caminho até ela com autonomia e método, e escolhe com cuidado quando e com quem interagir.",
+    "desc_f": "Você enxerga sistemas e padrões onde outras pessoas veem eventos isolados. Prefere construir uma visão de longo prazo e trilhar o caminho até ela com autonomia e método, e escolhe com cuidado quando e com quem interagir.",
     "strengths": [
       "Pensamento estratégico e visão de longo prazo",
       "Independência para tomar decisões difíceis",
@@ -88,7 +88,7 @@ const PROFILES = {
     "growth": [
       "Ouvir mais antes de decidir",
       "Validar o impacto emocional das próprias decisões",
-      "Delegar em vez de assumir tudo sozinho(a)"
+      "Delegar em vez de concentrar todas as responsabilidades"
     ],
     "img": "um leão antropomórfico em trajes executivos modernos, à frente de uma mesa com um gráfico de crescimento e uma bússola"
   },
@@ -154,7 +154,7 @@ const PROFILES = {
       "Comunicação calorosa e persuasiva"
     ],
     "growth": [
-      "Cuidar da própria energia antes de cuidar da dos outros",
+      "Preservar a própria disposição antes de cuidar das necessidades dos outros",
       "Aceitar quando nem todos podem ser agradados",
       "Tolerar conflitos sem tentar resolvê-los de imediato"
     ],
@@ -190,7 +190,7 @@ const PROFILES = {
     "growth": [
       "Abrir espaço para mudanças e novas abordagens",
       "Expressar emoções em vez de só sustentar a rotina",
-      "Delegar tarefas em vez de assumir tudo sozinho(a)"
+      "Delegar tarefas em vez de concentrar todas as responsabilidades"
     ],
     "img": "um urso antropomórfico robusto em pé diante de uma estante organizada, segurando uma prancheta e um relógio de bolso"
   },
@@ -294,15 +294,15 @@ const PROFILES = {
       "Ter mais paciência com processos lentos",
       "Refletir antes de reagir em momentos de tensão"
     ],
-    "img": "um guepardo antropomórfico em pleno movimento, com uma prancha de skate e faíscas de energia ao redor"
+    "img": "um guepardo antropomórfico em pleno movimento, com uma prancha de skate e linhas de movimento ao redor"
   },
   "ESFP": {
     "name_m": "O Animador Espontâneo",
     "name_f": "A Animadora Espontânea",
-    "desc_m": "Caloroso e espontâneo, você traz leveza e energia para onde está. Vive o momento presente com intensidade e tem facilidade para deixar as pessoas ao redor mais à vontade.",
-    "desc_f": "Calorosa e espontânea, você traz leveza e energia para onde está. Vive o momento presente com intensidade e tem facilidade para deixar as pessoas ao redor mais à vontade.",
+    "desc_m": "Caloroso e espontâneo, você traz leveza e entusiasmo para onde está. Vive o momento presente com intensidade e tem facilidade para deixar as pessoas ao redor mais à vontade.",
+    "desc_f": "Calorosa e espontânea, você traz leveza e entusiasmo para onde está. Vive o momento presente com intensidade e tem facilidade para deixar as pessoas ao redor mais à vontade.",
     "strengths": [
-      "Energia e entusiasmo contagiantes",
+      "Entusiasmo contagiante",
       "Facilidade para se conectar com pessoas",
       "Flexibilidade diante de mudanças de última hora"
     ],
