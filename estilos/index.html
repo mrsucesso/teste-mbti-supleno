@@ -101,6 +101,18 @@
             <input type="email" id="leadEmail" autocomplete="email" placeholder="seu@email.com" aria-describedby="leadEmailError">
             <p class="field-error" id="leadEmailError" role="alert"></p>
           </div>
+          <div class="field">
+            <label for="leadWhats">WhatsApp (opcional)</label>
+            <input type="tel" id="leadWhats" autocomplete="tel" placeholder="(27) 99999-9999" aria-describedby="leadWhatsError">
+            <p class="field-error" id="leadWhatsError" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="leadConsent" style="display:flex; align-items:flex-start; gap:8px; font-weight:400;">
+              <input type="checkbox" id="leadConsent" style="width:auto; margin-top:3px;" aria-describedby="leadConsentError">
+              <span>Autorizo o envio do meu resultado e de mensagens de acompanhamento por e-mail (e WhatsApp, se eu informar), com consentimento explícito para essa finalidade. Posso cancelar quando quiser.</span>
+            </label>
+            <p class="field-error" id="leadConsentError" role="alert"></p>
+          </div>
           <!-- Honeypot: campo invisível para humanos, usado só para filtrar bots. -->
           <div class="visually-hidden" aria-hidden="true">
             <label for="leadWebsite">Não preencha este campo</label>
@@ -108,7 +120,7 @@
           </div>
           <p class="form-error" id="formError" role="alert" style="display:none;"></p>
           <button type="submit" class="btn secondary" id="leadSubmitBtn">Enviar por e-mail</button>
-          <p class="privacy-note">Seus dados não são compartilhados com terceiros.</p>
+          <p class="privacy-note">Seus dados não são compartilhados com terceiros. Você pode cancelar a qualquer momento pelo link de cancelamento incluído em cada e-mail da sequência.</p>
         </form>
         <p class="privacy-note" id="leadSentMsg" style="display:none;">Recebido! Você pode continuar vendo seu resultado acima.</p>
       </div>
@@ -136,7 +148,9 @@
 const SUPLENO_CONFIG = window.SUPLENO_CONFIG || {};
 const CTA_URL = SUPLENO_CONFIG.CTA_URL || "https://supleno.com";
 const WEBHOOK_URL = SUPLENO_CONFIG.WEBHOOK_URL || ""; // vazio = formulário não envia (modo seguro/local)
-const CONFIG_TOKEN = SUPLENO_CONFIG.CONFIG_TOKEN || ""; // não secreto, ver README > Antiabuso
+const CONFIG_TOKEN = SUPLENO_CONFIG.CONFIG_TOKEN || "";
+const SANDBOX_MODE = true;
+const ATTRIBUTION = new URLSearchParams(typeof window !== 'undefined' && window.location ? window.location.search : ''); // utm_source, utm_medium, utm_campaign e origem; não secreto
 
 /* ================= DADOS =================
    Banco de perguntas original do Supleno, inspirado apenas nas quatro
@@ -390,12 +404,19 @@ function submitLead(e){
   btn.disabled = true; btn.textContent = 'Enviando...';
 
   const payload = {
-    name, email, code: currentStyle, scores,
+    name, email, whatsapp: document.getElementById('leadWhats').value.trim(), consentimento: true, teste: 'estilos', resultado: currentStyle, pontuacoes: scores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: document.referrer || '', scores: currentStyle,
     website: honeypot, token: CONFIG_TOKEN,
     date: new Date().toISOString()
   };
 
-  if(WEBHOOK_URL){
+  const consent = document.getElementById('leadConsent');
+  if(!consent.checked){
+    document.getElementById('leadConsentError').textContent = 'Marque o consentimento para continuar.';
+    consent.focus();
+    return;
+  }
+  // if(WEBHOOK_URL) só pode prosseguir fora do sandbox explícito.
+  if(WEBHOOK_URL && !SANDBOX_MODE){
     // Melhor esforço: validamos a resposta só para diagnóstico (console),
     // mas nunca alteramos o que já está na tela — o resultado já apareceu
     // no fim do quiz, antes mesmo deste envio opcional existir.

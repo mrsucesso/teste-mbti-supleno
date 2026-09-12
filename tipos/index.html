@@ -71,8 +71,19 @@
       </div>
     </section>
 
-    <!-- TELA 3: CAPTURA DE LEAD -->
-    <section id="screen-lead" class="screen">
+    <!-- TELA 4: RESULTADO SIMPLES (a versão completa vai por e-mail) -->
+    <section id="screen-result" class="screen">
+      <div class="result-type">
+        <div class="result-letters" id="resLetters">----</div>
+        <div class="result-name" id="resName"></div>
+      </div>
+      <p class="result-desc" id="resDesc"></p>
+      <p class="privacy-note" style="text-align:center; margin-bottom:18px;">📩 Enviamos o resultado completo — pontos fortes e caminhos de desenvolvimento — para o seu e-mail.</p>
+      <a class="btn secondary" id="resFullLink" href="#" target="_blank" rel="noopener noreferrer">Ver Página Completa do Perfil</a>
+      <button class="btn" style="margin-top:12px;" onclick="restartQuiz()">Refazer o Teste</button>
+
+    <!-- CAPTURA OPCIONAL APÓS O RESULTADO -->
+      <div class="result-block" id="captureBlock">
       <h2>Quase lá!</h2>
       <p class="lead">Seu resultado está pronto. Informe seus dados para revelar seu perfil.</p>
       <form class="lead-form" id="leadForm" onsubmit="submitLead(event)" novalidate>
@@ -91,6 +102,10 @@
           <input type="tel" id="leadWhats" autocomplete="tel" placeholder="(27) 99999-9999" aria-describedby="leadWhatsError">
           <p class="field-error" id="leadWhatsError" role="alert"></p>
         </div>
+        <div class="field">
+          <label for="leadConsent" style="display:flex; gap:8px; font-weight:400;"><input type="checkbox" id="leadConsent" aria-describedby="leadConsentError"> <span>Autorizo receber o resultado e comunicações do Supleno. Posso cancelar quando quiser.</span></label>
+          <p class="field-error" id="leadConsentError" role="alert"></p>
+        </div>
         <!-- Honeypot: campo invisível para humanos, usado só para filtrar bots. -->
         <div class="visually-hidden" aria-hidden="true">
           <label for="leadWebsite">Não preencha este campo</label>
@@ -100,18 +115,9 @@
         <button type="submit" class="btn" id="leadSubmitBtn" style="margin-top:6px;">Ver Meu Resultado</button>
         <p class="privacy-note">Seu resultado completo será enviado para o seu e-mail. Seus dados não são compartilhados com terceiros.</p>
       </form>
-    </section>
-
-    <!-- TELA 4: RESULTADO SIMPLES (a versão completa vai por e-mail) -->
-    <section id="screen-result" class="screen">
-      <div class="result-type">
-        <div class="result-letters" id="resLetters">----</div>
-        <div class="result-name" id="resName"></div>
       </div>
-      <p class="result-desc" id="resDesc"></p>
-      <p class="privacy-note" style="text-align:center; margin-bottom:18px;">📩 Enviamos o resultado completo — pontos fortes e caminhos de desenvolvimento — para o seu e-mail.</p>
-      <a class="btn secondary" id="resFullLink" href="#" target="_blank" rel="noopener noreferrer">Ver Página Completa do Perfil</a>
-      <button class="btn" style="margin-top:12px;" onclick="restartQuiz()">Refazer o Teste</button>
+
+
     </section>
 
   </main>
@@ -134,7 +140,9 @@
 const SUPLENO_CONFIG = window.SUPLENO_CONFIG || {};
 const CTA_URL = SUPLENO_CONFIG.CTA_URL || "https://supleno.com";
 const WEBHOOK_URL = SUPLENO_CONFIG.WEBHOOK_URL || ""; // vazio = formulário não envia (modo seguro/local)
-const CONFIG_TOKEN = SUPLENO_CONFIG.CONFIG_TOKEN || ""; // não secreto, ver README > Antiabuso
+const CONFIG_TOKEN = SUPLENO_CONFIG.CONFIG_TOKEN || "";
+const SANDBOX_MODE = true;
+const ATTRIBUTION = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''); // utm_source, utm_medium, utm_campaign e origem // não secreto, ver README > Antiabuso
 
 /* ================= DADOS ================= */
 const QUESTIONS = [{"dim": "EI", "a": {"t": "Depois de um evento social movimentado, costumo ter disposição para continuar conversando e interagindo", "p": "E"}, "b": {"t": "Depois de um evento social movimentado, costumo preferir silêncio e menos interação", "p": "I"}}, {"dim": "EI", "a": {"t": "Penso enquanto falo, elaborando as ideias em voz alta", "p": "E"}, "b": {"t": "Penso antes de falar, elaborando as ideias internamente", "p": "I"}}, {"dim": "EI", "a": {"t": "Prefiro ambientes de trabalho abertos e movimentados", "p": "E"}, "b": {"t": "Prefiro ambientes tranquilos, com poucas interrupções", "p": "I"}}, {"dim": "EI", "a": {"t": "Tenho muitos conhecidos e círculos variados", "p": "E"}, "b": {"t": "Tenho poucos vínculos, porém mais profundos", "p": "I"}}, {"dim": "EI", "a": {"t": "Quando bate o tédio, procuro conversar ou fazer algo com outras pessoas", "p": "E"}, "b": {"t": "Quando bate o tédio, prefiro encontrar algo para fazer por conta própria", "p": "I"}}, {"dim": "EI", "a": {"t": "Em grupos, costumo puxar e conduzir a conversa", "p": "E"}, "b": {"t": "Em grupos, costumo observar antes de participar", "p": "I"}}, {"dim": "EI", "a": {"t": "Prefiro gerar ideias em grupo, no coletivo", "p": "E"}, "b": {"t": "Prefiro refletir por conta própria antes de compartilhar ideias", "p": "I"}}, {"dim": "SN", "a": {"t": "Confio mais em fatos concretos e experiência prática", "p": "S"}, "b": {"t": "Confio mais em padrões, possibilidades e intuições", "p": "N"}}, {"dim": "SN", "a": {"t": "Prefiro instruções claras, passo a passo", "p": "S"}, "b": {"t": "Prefiro entender o conceito geral e improvisar o caminho", "p": "N"}}, {"dim": "SN", "a": {"t": "Meu foco está no que é real e tangível agora", "p": "S"}, "b": {"t": "Meu foco está no que pode vir a ser no futuro", "p": "N"}}, {"dim": "SN", "a": {"t": "Considero-me uma pessoa prática e realista", "p": "S"}, "b": {"t": "Considero-me uma pessoa imaginativa e visionária", "p": "N"}}, {"dim": "SN", "a": {"t": "Aprendo melhor com exemplos concretos e aplicados", "p": "S"}, "b": {"t": "Aprendo melhor com teorias, metáforas e analogias", "p": "N"}}, {"dim": "SN", "a": {"t": "Confio em métodos já testados e comprovados", "p": "S"}, "b": {"t": "Confio em inovações e novas possibilidades", "p": "N"}}, {"dim": "SN", "a": {"t": "Presto atenção nos detalhes primeiro", "p": "S"}, "b": {"t": "Presto atenção no quadro geral primeiro", "p": "N"}}, {"dim": "TF", "a": {"t": "Decido com base em lógica e critérios objetivos", "p": "T"}, "b": {"t": "Decido com base em valores e no impacto nas pessoas", "p": "F"}}, {"dim": "TF", "a": {"t": "Dou feedback direto, mesmo que possa doer", "p": "T"}, "b": {"t": "Suavizo o feedback para preservar o vínculo", "p": "F"}}, {"dim": "TF", "a": {"t": "Prezo mais pela justiça — regras iguais para todos", "p": "T"}, "b": {"t": "Prezo mais pela compreensão do caso individual", "p": "F"}}, {"dim": "TF", "a": {"t": "Analiso prós e contras com distanciamento", "p": "T"}, "b": {"t": "Considero como cada opção afeta as pessoas envolvidas", "p": "F"}}, {"dim": "TF", "a": {"t": "As pessoas costumam me considerar alguém racional", "p": "T"}, "b": {"t": "As pessoas costumam me considerar alguém com facilidade para compreender sentimentos", "p": "F"}}, {"dim": "TF", "a": {"t": "Conflitos se resolvem com argumentos sólidos", "p": "T"}, "b": {"t": "Conflitos se resolvem restaurando a harmonia", "p": "F"}}, {"dim": "TF", "a": {"t": "Critico ideias sem me preocupar tanto em ferir quem as defende", "p": "T"}, "b": {"t": "Cuido de como a crítica será recebida antes de fazê-la", "p": "F"}}, {"dim": "JP", "a": {"t": "Gosto de ter tudo planejado com antecedência", "p": "J"}, "b": {"t": "Gosto de manter minhas opções em aberto", "p": "P"}}, {"dim": "JP", "a": {"t": "Costumo terminar tarefas antes do prazo", "p": "J"}, "b": {"t": "Trabalho melhor sob pressão, perto do prazo", "p": "P"}}, {"dim": "JP", "a": {"t": "Prefiro rotina e previsibilidade", "p": "J"}, "b": {"t": "Prefiro espontaneidade e variedade", "p": "P"}}, {"dim": "JP", "a": {"t": "Listas e cronogramas me trazem alívio", "p": "J"}, "b": {"t": "Listas e cronogramas me trazem sensação de aprisionamento", "p": "P"}}, {"dim": "JP", "a": {"t": "Prefiro decidir logo e seguir em frente", "p": "J"}, "b": {"t": "Prefiro manter a decisão em aberto o máximo possível", "p": "P"}}, {"dim": "JP", "a": {"t": "Organização é essencial para o meu bem-estar", "p": "J"}, "b": {"t": "Flexibilidade é essencial para o meu bem-estar", "p": "P"}}, {"dim": "JP", "a": {"t": "Gosto de viagens com roteiro planejado", "p": "J"}, "b": {"t": "Gosto de viagens livres, decidindo na hora", "p": "P"}}];
@@ -209,7 +217,7 @@ function finishQuiz(){
   answers.forEach(p=>{ if(p) scores[p]++; });
   document.getElementById('progressFill').style.width = '100%';
   document.querySelector('.progress-track').setAttribute('aria-valuenow', String(QUESTIONS.length));
-  showScreen('screen-lead');
+  showResult(computeType(), gender);
 }
 
 function computeType(){
@@ -292,12 +300,18 @@ function submitLead(e){
   btn.disabled = true; btn.textContent = 'Enviando...';
 
   const payload = {
-    name, email, whatsapp: whats, code, gender, sigla,
+    name, email, whatsapp: whats, consentimento: true, teste: 'tipos', resultado: { code, gender }, pontuacoes: scores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: document.referrer || '', code, gender, sigla,
     website: honeypot, token: CONFIG_TOKEN,
     date: new Date().toISOString()
   };
 
-  if(WEBHOOK_URL){
+  const consent = document.getElementById('leadConsent');
+  if(!consent.checked){
+    document.getElementById('leadConsentError').textContent = 'Marque o consentimento para continuar.';
+    consent.focus();
+    return;
+  }
+  if(WEBHOOK_URL && !SANDBOX_MODE){
     // Melhor esforço: validamos a resposta só para diagnóstico (console),
     // mas nunca bloqueamos a experiência do usuário por causa dela — o
     // resultado sempre aparece na tela, mesmo se o backend falhar.
