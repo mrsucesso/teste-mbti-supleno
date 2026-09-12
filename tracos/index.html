@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Supleno Traços — Em construção | Testes Supleno</title>
-<meta name="description" content="Supleno Traços é uma prévia interativa, em construção, para refletir sobre características pessoais que aparecem em diferentes contextos. Sem resultado, sem rótulos fechados.">
+<title>Supleno Traços — Teste de Cinco Dimensões de Personalidade | Testes Supleno</title>
+<meta name="description" content="Descubra sua tendência em cinco dimensões contínuas de personalidade no Supleno Traços, a partir de 25 afirmações. Resultado imediato, sem necessidade de cadastro.">
 <link rel="canonical" href="https://testes.supleno.com/tracos/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Testes Supleno">
-<meta property="og:title" content="Supleno Traços — Em construção">
-<meta property="og:description" content="Prévia interativa, em construção, para refletir sobre características pessoais que aparecem em diferentes contextos.">
+<meta property="og:title" content="Supleno Traços — Teste de Cinco Dimensões de Personalidade">
+<meta property="og:description" content="Descubra sua tendência em cinco dimensões contínuas de personalidade no Supleno Traços, a partir de 25 afirmações.">
 <meta property="og:url" content="https://testes.supleno.com/tracos/">
 <meta property="og:locale" content="pt_BR">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Supleno Traços — Em construção">
-<meta name="twitter:description" content="Prévia interativa, em construção, para refletir sobre características pessoais que aparecem em diferentes contextos.">
+<meta name="twitter:title" content="Supleno Traços — Teste de Cinco Dimensões de Personalidade">
+<meta name="twitter:description" content="Descubra sua tendência em cinco dimensões contínuas de personalidade no Supleno Traços.">
 <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
@@ -36,63 +36,430 @@
 </nav>
 
 <div class="wrap">
+  <header class="top">
+    <div class="brand">Supleno Traços</div>
+    <div class="brand-sub">Autoconhecimento e Desenvolvimento Humano</div>
+  </header>
+
   <main id="conteudo" class="card">
-    <span class="badge soon">Em construção</span>
-    <h1 style="margin-top:12px;">Supleno Traços</h1>
-    <p class="lead">Uma prévia interativa para refletir sobre características pessoais que aparecem de forma consistente em diferentes contextos — trabalho, estudo e relações.</p>
-    <p class="preview-note">Este é um protótipo educativo, ainda em construção. Os controles abaixo são só para reflexão pessoal: nada é enviado, gravado ou transformado em resultado final.</p>
 
-    <div class="trait-list">
-      <div class="trait-item">
-        <label for="t1">Iniciativa <span class="trait-value" id="t1Value">no meio-termo</span></label>
-        <input type="range" id="t1" min="0" max="100" value="50" data-low="Prefere esperar o momento certo para agir" data-high="Prefere agir primeiro e ajustar depois">
-        <div class="trait-caption"><span>Espera o momento certo</span><span>Age primeiro</span></div>
+    <!-- TELA 1: INTRODUÇÃO -->
+    <section id="screen-intro" class="screen active">
+      <h1>Descubra sua tendência em cinco dimensões</h1>
+      <p class="lead">Um teste com 25 afirmações originais que posicionam você em cinco dimensões contínuas de personalidade amplamente estudadas — iniciativa social, abertura a novidades, organização e método, tranquilidade emocional e consideração pelos outros. Leva cerca de 5 minutos.</p>
+      <button class="btn" onclick="startQuiz()">Começar o Teste</button>
+      <p class="privacy-note" style="text-align:center; margin-top:14px;">Não existem respostas certas ou erradas — responda com o quanto cada afirmação combina com você hoje. O resultado aparece na hora, sem necessidade de cadastro.</p>
+    </section>
+
+    <!-- TELA 2: QUIZ -->
+    <section id="screen-quiz" class="screen">
+      <div class="progress-wrap">
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="25" aria-valuenow="0" aria-labelledby="progressLabel">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="progress-label" id="progressLabel">Afirmação 1 de 25</div>
+      </div>
+      <div class="q-text" id="qText">Texto da afirmação</div>
+      <div class="likert-scale" id="likertScale" role="radiogroup" aria-labelledby="qText"></div>
+      <div class="trait-caption"><span>Discordo totalmente</span><span>Concordo totalmente</span></div>
+      <div class="nav-row">
+        <button class="link-btn" id="backBtn" onclick="goBack()">&larr; Voltar</button>
+        <span></span>
+      </div>
+    </section>
+
+    <!-- TELA 3: RESULTADO IMEDIATO + CAPTURA OPCIONAL -->
+    <section id="screen-result" class="screen">
+      <h2>Seu resultado nas cinco dimensões</h2>
+      <p class="result-desc">Isto descreve tendências observadas nas suas respostas de hoje — humor, contexto e fase de vida podem influenciar o resultado. Não é um rótulo fixo nem um diagnóstico.</p>
+
+      <div class="result-block">
+        <div id="resScores"></div>
       </div>
 
-      <div class="trait-item">
-        <label for="t2">Constância <span class="trait-value" id="t2Value">no meio-termo</span></label>
-        <input type="range" id="t2" min="0" max="100" value="50" data-low="Varia bastante o ritmo conforme o interesse do momento" data-high="Mantém o mesmo ritmo mesmo quando o interesse diminui">
-        <div class="trait-caption"><span>Ritmo variável</span><span>Ritmo estável</span></div>
+      <div class="result-block" id="resDetails"></div>
+
+      <div class="result-block">
+        <h3>Metodologia e limitações</h3>
+        <p style="font-size:14px; color:var(--ink-soft); margin:0 0 10px;">Este resultado usa uma escala de concordância (Likert) de 5 pontos aplicada a 25 afirmações originais do Supleno, cinco para cada uma das cinco dimensões. Cerca de 40% das afirmações são invertidas (itens reversos), para reduzir a tendência de concordar automaticamente com tudo. A pontuação de cada dimensão soma as cinco respostas (invertendo os itens reversos), converte o total em uma porcentagem de 0 a 100 e agrupa o resultado em três faixas — baixa, média e alta.</p>
+        <p style="font-size:14px; color:var(--ink-soft); margin:0;">Limitações: é um autorrelato de um momento específico, então humor, cansaço ou contexto podem mudar as respostas ao longo do tempo. O instrumento é original do Supleno, inspirado apenas em cinco dimensões amplamente estudadas sobre personalidade; não é um teste clínico, licenciado ou validado cientificamente, não foi calibrado com estudos formais de confiabilidade ou validade, e não substitui avaliação psicológica profissional.</p>
       </div>
 
-      <div class="trait-item">
-        <label for="t3">Flexibilidade <span class="trait-value" id="t3Value">no meio-termo</span></label>
-        <input type="range" id="t3" min="0" max="100" value="50" data-low="Prefere manter rotinas e caminhos já conhecidos" data-high="Prefere experimentar caminhos novos, mesmo sem garantia">
-        <div class="trait-caption"><span>Prefere o conhecido</span><span>Prefere o novo</span></div>
+      <div class="result-block" id="captureBlock">
+        <h3>Quer receber esse resultado por e-mail? (opcional)</h3>
+        <p class="privacy-note" style="margin-top:0;">Isso não é necessário para ver o resultado acima — é só uma forma de guardá-lo.</p>
+        <form class="lead-form" id="leadForm" onsubmit="submitLead(event)" novalidate>
+          <div class="field">
+            <label for="leadName">Nome</label>
+            <input type="text" id="leadName" autocomplete="name" placeholder="Seu nome" aria-describedby="leadNameError">
+            <p class="field-error" id="leadNameError" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="leadEmail">E-mail</label>
+            <input type="email" id="leadEmail" autocomplete="email" placeholder="seu@email.com" aria-describedby="leadEmailError">
+            <p class="field-error" id="leadEmailError" role="alert"></p>
+          </div>
+          <!-- Honeypot: campo invisível para humanos, usado só para filtrar bots. -->
+          <div class="visually-hidden" aria-hidden="true">
+            <label for="leadWebsite">Não preencha este campo</label>
+            <input type="text" id="leadWebsite" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <p class="form-error" id="formError" role="alert" style="display:none;"></p>
+          <button type="submit" class="btn secondary" id="leadSubmitBtn">Enviar por e-mail</button>
+          <p class="privacy-note">Seus dados não são compartilhados com terceiros.</p>
+        </form>
+        <p class="privacy-note" id="leadSentMsg" style="display:none;">Recebido! Você pode continuar vendo seu resultado acima.</p>
       </div>
 
-      <div class="trait-item">
-        <label for="t4">Atenção a detalhes <span class="trait-value" id="t4Value">no meio-termo</span></label>
-        <input type="range" id="t4" min="0" max="100" value="50" data-low="Foca primeiro no quadro geral, deixando os detalhes para depois" data-high="Foca primeiro nos detalhes antes de olhar para o quadro geral">
-        <div class="trait-caption"><span>Quadro geral primeiro</span><span>Detalhes primeiro</span></div>
-      </div>
-    </div>
+      <button class="btn" style="margin-top:12px;" onclick="restartQuiz()">Refazer o Teste</button>
+    </section>
 
-    <p class="style-result" id="tracosReflexao">Mova os controles acima para ver uma reflexão sobre cada característica.</p>
-
-    <div class="cta-box">
-      <p>Enquanto o Supleno Traços não é lançado, você já pode fazer o Supleno Tipos.</p>
-      <a class="btn" href="../tipos/">Fazer o Supleno Tipos</a>
-    </div>
   </main>
-
-  <footer class="bottom">&copy; <span id="year"></span> Supleno Traços — conteúdo educativo em construção. Um produto da família Testes Supleno.</footer>
+  <footer class="bottom">&copy; <span id="year"></span> Supleno Traços — conteúdo educativo inspirado apenas em cinco dimensões amplamente estudadas sobre personalidade. Não é um instrumento clínico, não tem filiação ou licenciamento de nenhuma metodologia comercial, não foi validado cientificamente e não substitui avaliação psicológica profissional. Um produto da família Testes Supleno.</footer>
 </div>
 
+<!--
+  config.js NÃO é versionado (ver .gitignore) e é opcional: se ausente, o site
+  funciona normalmente em modo aberto/local (sem envio de webhook). Copie
+  config.example.js para config.js e preencha antes de publicar em produção.
+  Este config.js é próprio do Supleno Traços — não reaproveite o do Supleno
+  Tipos nem do Supleno Estilos, pois o backend (apps-script/Code.gs)
+  validaria o formato de resultado errado.
+-->
 <script src="../assets/nav.js" defer></script>
+<script src="config.js" onerror="window.SUPLENO_CONFIG = window.SUPLENO_CONFIG || {}; console.info('config.js não encontrado — rodando em modo aberto/local (ver README > Configuração).');"></script>
 <script>
-document.getElementById('year').textContent = new Date().getFullYear();
+/* ================= CONFIGURAÇÃO =================
+   Valores reais ficam em config.js (gitignored, ver config.example.js).
+   Aqui só definimos os padrões seguros usados quando config.js não existe. */
+const SUPLENO_CONFIG = window.SUPLENO_CONFIG || {};
+const CTA_URL = SUPLENO_CONFIG.CTA_URL || "https://supleno.com";
+const WEBHOOK_URL = SUPLENO_CONFIG.WEBHOOK_URL || ""; // vazio = formulário não envia (modo seguro/local)
+const CONFIG_TOKEN = SUPLENO_CONFIG.CONFIG_TOKEN || ""; // não secreto, ver README > Antiabuso
 
-document.querySelectorAll('.trait-item input[type="range"]').forEach(function (input) {
-  var valueLabel = document.getElementById(input.id + 'Value');
-  var reflexao = document.getElementById('tracosReflexao');
-  input.addEventListener('input', function () {
-    var v = Number(input.value);
-    var label = v < 40 ? 'mais para um lado' : v > 60 ? 'mais para o outro lado' : 'no meio-termo';
-    valueLabel.textContent = label;
-    reflexao.textContent = v > 50 ? input.dataset.high : v < 50 ? input.dataset.low : 'Você se vê um pouco dos dois lados, dependendo do contexto.';
+/* ================= DADOS =================
+   Banco de afirmações original do Supleno, inspirado apenas em cinco
+   dimensões contínuas amplamente estudadas sobre personalidade (iniciativa
+   social, abertura a novidades, organização e método, tranquilidade
+   emocional e consideração pelos outros). Cada afirmação é respondida numa
+   escala de concordância de 5 pontos. As 25 afirmações cobrem as 5
+   dimensões, 5 vezes cada; em cada dimensão, 3 afirmações são diretas e 2
+   são itens reversos (a concordância indica a extremidade oposta da
+   dimensão), para reduzir a tendência de concordar automaticamente com
+   tudo (viés de aquiescência). */
+const ORDER = ["SO", "AN", "OM", "TE", "CO"];
+const DIMENSIONS = {
+  SO: "Iniciativa Social",
+  AN: "Abertura a Novidades",
+  OM: "Organização e Método",
+  TE: "Tranquilidade Emocional",
+  CO: "Consideração pelos Outros"
+};
+const LIKERT_LABELS = ["Discordo totalmente", "Discordo", "Neutro", "Concordo", "Concordo totalmente"];
+const QUESTIONS = [
+  {"dim":"SO","reverse":false,"t":"Puxo conversa com facilidade, mesmo com pessoas que acabei de conhecer."},
+  {"dim":"SO","reverse":false,"t":"Prefiro planos que envolvam grupos grandes a programas mais reservados."},
+  {"dim":"SO","reverse":false,"t":"Sinto-me à vontade sendo o centro das atenções em uma roda de pessoas."},
+  {"dim":"SO","reverse":true,"t":"Prefiro passar um tempo em silêncio depois de um dia cheio de compromissos sociais."},
+  {"dim":"SO","reverse":true,"t":"Evito iniciar conversas com desconhecidos sempre que posso."},
+  {"dim":"AN","reverse":false,"t":"Gosto de experimentar lugares, comidas ou atividades que nunca experimentei antes."},
+  {"dim":"AN","reverse":false,"t":"Sinto curiosidade sempre que surge um assunto totalmente novo para mim."},
+  {"dim":"AN","reverse":false,"t":"Prefiro caminhos alternativos a repetir sempre a mesma rotina."},
+  {"dim":"AN","reverse":true,"t":"Prefiro manter os mesmos hábitos a testar formas diferentes de fazer algo."},
+  {"dim":"AN","reverse":true,"t":"Evito mudar de planos mesmo quando aparece uma opção interessante."},
+  {"dim":"OM","reverse":false,"t":"Faço listas ou planos antes de começar tarefas importantes."},
+  {"dim":"OM","reverse":false,"t":"Sou uma pessoa organizada com prazos e compromissos."},
+  {"dim":"OM","reverse":false,"t":"Gosto de terminar uma tarefa antes de começar outra."},
+  {"dim":"OM","reverse":true,"t":"Costumo deixar tarefas pela metade quando perco o interesse nelas."},
+  {"dim":"OM","reverse":true,"t":"Prefiro improvisar a seguir um plano definido com antecedência."},
+  {"dim":"TE","reverse":false,"t":"Mantenho a calma mesmo quando as coisas saem do controle."},
+  {"dim":"TE","reverse":false,"t":"Levo contratempos inesperados com tranquilidade."},
+  {"dim":"TE","reverse":false,"t":"Consigo separar um problema pontual do resto do meu dia."},
+  {"dim":"TE","reverse":true,"t":"Sinto preocupação com pequenos detalhes por bastante tempo depois que eles acontecem."},
+  {"dim":"TE","reverse":true,"t":"Pequenos contratempos tiram meu equilíbrio com facilidade."},
+  {"dim":"CO","reverse":false,"t":"Levo em conta os sentimentos das outras pessoas antes de tomar uma decisão."},
+  {"dim":"CO","reverse":false,"t":"Costumo ceder em pequenas discussões para manter um clima bom entre as pessoas."},
+  {"dim":"CO","reverse":false,"t":"Procuro ajudar quando percebo que alguém está com dificuldade."},
+  {"dim":"CO","reverse":true,"t":"Coloco meus próprios interesses na frente, mesmo quando isso incomoda outras pessoas."},
+  {"dim":"CO","reverse":true,"t":"Tenho dificuldade em confiar nas intenções das outras pessoas até que provem o contrário."}
+];
+const RESULTS = {
+  "SO": {
+    "baixo": "Você tende a preferir ambientes mais reservados e a recarregar em momentos de silêncio, buscando interação social em doses menores.",
+    "medio": "Você tende a alternar entre buscar companhia e preferir momentos sozinho, conforme o contexto e o seu estado no dia.",
+    "alto": "Você tende a buscar interação com outras pessoas com frequência e a se sentir à vontade em ambientes movimentados."
+  },
+  "AN": {
+    "baixo": "Você tende a preferir rotinas e caminhos já conhecidos, e a se sentir mais seguro com o que já deu certo antes.",
+    "medio": "Você tende a experimentar novidades ocasionalmente, mas sem abrir mão da previsibilidade na maior parte do tempo.",
+    "alto": "Você tende a buscar novidade e variedade, sentindo curiosidade por ideias, lugares ou formas diferentes de fazer as coisas."
+  },
+  "OM": {
+    "baixo": "Você tende a preferir improvisar e se adaptar ao momento, em vez de seguir planos definidos com antecedência.",
+    "medio": "Você tende a planejar o essencial, mas mantém espaço para ajustar o percurso conforme as coisas acontecem.",
+    "alto": "Você tende a planejar com cuidado, manter prazos organizados e terminar o que começa antes de seguir adiante."
+  },
+  "TE": {
+    "baixo": "Você tende a sentir contratempos com mais intensidade e a levar mais tempo para recuperar o equilíbrio depois deles.",
+    "medio": "Você tende a lidar bem com a maioria das situações, mas alguns contratempos ainda afetam seu equilíbrio por um tempo.",
+    "alto": "Você tende a manter a calma diante de imprevistos e a separar bem um problema pontual do restante do seu dia."
+  },
+  "CO": {
+    "baixo": "Você tende a priorizar seus próprios interesses e critérios, mesmo quando isso gera atrito com outras pessoas.",
+    "medio": "Você tende a equilibrar seus interesses com os das outras pessoas, cedendo em algumas situações e não em outras.",
+    "alto": "Você tende a considerar os sentimentos das outras pessoas nas suas decisões e a buscar cooperação antes do confronto."
+  }
+};
+
+/* ================= ESTADO ================= */
+let order = [];
+let current = 0;
+let answers = [];
+let currentScores = null;
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function startQuiz(){
+  order = shuffle(QUESTIONS.map((q,i)=>i));
+  current = 0;
+  answers = new Array(QUESTIONS.length).fill(null);
+  showScreen('screen-quiz');
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const qi = order[current];
+  const q = QUESTIONS[qi];
+  document.getElementById('qText').textContent = q.t;
+
+  const scale = document.getElementById('likertScale');
+  scale.innerHTML = '';
+  for(let v=1; v<=5; v++){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'likert-option';
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', answers[qi] === v ? 'true' : 'false');
+    btn.setAttribute('aria-label', `${v} — ${LIKERT_LABELS[v-1]}`);
+    btn.textContent = String(v);
+    btn.onclick = ()=>selectLikert(qi, v);
+    scale.appendChild(btn);
+  }
+
+  document.getElementById('progressLabel').textContent = `Afirmação ${current+1} de ${QUESTIONS.length}`;
+  document.getElementById('progressFill').style.width = `${(current/QUESTIONS.length)*100}%`;
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(current));
+  document.getElementById('backBtn').style.visibility = current===0 ? 'hidden' : 'visible';
+}
+
+function selectLikert(qi, value){
+  answers[qi] = value;
+  if(current < QUESTIONS.length - 1){ current++; renderQuestion(); }
+  else { finishQuiz(); }
+}
+
+function goBack(){ if(current>0){ current--; renderQuestion(); } }
+
+/* Faixas fixas de 0 a 100: 0-33 baixo, 34-66 médio, 67-100 alto. */
+function faixaFromPercent(percent){
+  if(percent < 34) return 'baixo';
+  if(percent < 67) return 'medio';
+  return 'alto';
+}
+
+/* Algoritmo determinístico: soma as 5 respostas de cada dimensão (invertendo
+   os itens reversos com 6 - valor), converte a soma (5 a 25) em porcentagem
+   de 0 a 100 e classifica em uma faixa fixa. O mesmo conjunto de respostas
+   produz sempre o mesmo resultado. */
+function computeScores(answersArg){
+  const sums = {}; ORDER.forEach(d=>sums[d]=0);
+  QUESTIONS.forEach((q, i)=>{
+    const raw = answersArg[i];
+    const scored = q.reverse ? (6 - raw) : raw;
+    sums[q.dim] += scored;
   });
-});
+  const result = {};
+  ORDER.forEach(d=>{
+    const percent = Math.round(((sums[d] - 5) / 20) * 100);
+    result[d] = { sum: sums[d], percent, faixa: faixaFromPercent(percent) };
+  });
+  return result;
+}
+
+/* O resultado aparece imediatamente ao final do quiz — a captura de
+   e-mail (abaixo, no mesmo ecrã) é opcional e nunca bloqueia esta etapa. */
+function finishQuiz(){
+  document.getElementById('progressFill').style.width = '100%';
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(QUESTIONS.length));
+  currentScores = computeScores(answers);
+  renderResult(currentScores);
+  showScreen('screen-result');
+}
+
+const FAIXA_LABELS = { baixo: 'Baixa tendência', medio: 'Tendência média', alto: 'Alta tendência' };
+
+function renderResult(scores){
+  const scoresWrap = document.getElementById('resScores');
+  scoresWrap.innerHTML = '';
+  ORDER.forEach(dim=>{
+    const s = scores[dim];
+    const row = document.createElement('div');
+    row.className = 'mini-bar-row';
+    const label = document.createElement('span');
+    label.className = 'mini-bar-label';
+    label.textContent = `${DIMENSIONS[dim]} — ${s.percent}% (${FAIXA_LABELS[s.faixa]})`;
+    const track = document.createElement('div');
+    track.className = 'mini-bar-track';
+    track.setAttribute('aria-hidden', 'true');
+    const fill = document.createElement('div');
+    fill.className = 'mini-bar-fill';
+    fill.style.width = `${s.percent}%`;
+    track.appendChild(fill);
+    row.appendChild(label);
+    row.appendChild(track);
+    scoresWrap.appendChild(row);
+  });
+
+  const details = document.getElementById('resDetails');
+  details.innerHTML = '';
+  ORDER.forEach(dim=>{
+    const s = scores[dim];
+    const h = document.createElement('h3');
+    h.textContent = DIMENSIONS[dim];
+    const p = document.createElement('p');
+    p.style.fontSize = '15px';
+    p.style.margin = '0 0 16px';
+    p.textContent = RESULTS[dim][s.faixa];
+    details.appendChild(h);
+    details.appendChild(p);
+  });
+}
+
+/* Mesmas regras de formato usadas no Supleno Tipos e no Supleno Estilos,
+   para dar feedback imediato ao usuário — aqui a captura é opcional, então
+   a validação só entra em ação se a pessoa decidir preencher e enviar o
+   formulário. */
+const NAME_PATTERN = /^[\p{L}\p{M} '.\-]{1,100}$/u;
+const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+
+function clearLeadErrors(){
+  ['leadNameError','leadEmailError'].forEach(id=>{
+    document.getElementById(id).textContent = '';
+  });
+  ['leadName','leadEmail'].forEach(id=>{
+    document.getElementById(id).removeAttribute('aria-invalid');
+  });
+  const formError = document.getElementById('formError');
+  formError.style.display = 'none';
+  formError.textContent = '';
+}
+
+function setFieldError(inputId, errorId, message){
+  document.getElementById(inputId).setAttribute('aria-invalid', 'true');
+  document.getElementById(errorId).textContent = message;
+}
+
+function validateLeadForm(){
+  clearLeadErrors();
+  const name = document.getElementById('leadName').value.trim();
+  const email = document.getElementById('leadEmail').value.trim();
+  let firstInvalid = null;
+
+  if(!NAME_PATTERN.test(name)){
+    setFieldError('leadName','leadNameError','Informe seu nome (só letras, espaços e hífen, até 100 caracteres).');
+    firstInvalid = firstInvalid || 'leadName';
+  }
+  if(!EMAIL_PATTERN.test(email)){
+    setFieldError('leadEmail','leadEmailError','Informe um e-mail válido.');
+    firstInvalid = firstInvalid || 'leadEmail';
+  }
+
+  if(firstInvalid){
+    document.getElementById(firstInvalid).focus();
+    return null;
+  }
+  return { name, email };
+}
+
+function showLeadSent(){
+  document.getElementById('leadForm').style.display = 'none';
+  document.getElementById('leadSentMsg').style.display = 'block';
+}
+
+function submitLead(e){
+  e.preventDefault();
+
+  // Honeypot: se o campo invisível foi preenchido, é quase certamente um bot.
+  // Fingimos sucesso e não fazemos nenhuma chamada de rede real. O resultado
+  // já está na tela havia muito antes deste formulário existir.
+  const honeypot = document.getElementById('leadWebsite').value.trim();
+  if(honeypot){
+    showLeadSent();
+    return;
+  }
+
+  const fields = validateLeadForm();
+  if(!fields){
+    return;
+  }
+  const { name, email } = fields;
+  const btn = document.getElementById('leadSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+
+  const payload = {
+    name, email, scores: currentScores,
+    website: honeypot, token: CONFIG_TOKEN,
+    date: new Date().toISOString()
+  };
+
+  if(WEBHOOK_URL){
+    // Melhor esforço: validamos a resposta só para diagnóstico (console),
+    // mas nunca alteramos o que já está na tela — o resultado já apareceu
+    // no fim do quiz, antes mesmo deste envio opcional existir.
+    fetch(WEBHOOK_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // evita preflight CORS no Apps Script
+      body: JSON.stringify(payload)
+    }).then(response => {
+        if(!response.ok){
+          console.warn('Webhook respondeu com status HTTP ' + response.status);
+          return null;
+        }
+        return response.json().catch(()=> null);
+      })
+      .then(data => {
+        if(data && data.ok !== true){
+          console.warn('Webhook processou a requisição, mas retornou falha:', data.error || data);
+        }
+      })
+      .catch(err => console.warn('Falha ao contatar o webhook (best-effort):', err))
+      .finally(()=> showLeadSent());
+  } else {
+    showLeadSent();
+  }
+}
+
+function restartQuiz(){
+  document.getElementById('leadForm').style.display = 'flex';
+  document.getElementById('leadSentMsg').style.display = 'none';
+  const btn = document.getElementById('leadSubmitBtn');
+  btn.disabled = false; btn.textContent = 'Enviar por e-mail';
+  document.getElementById('leadForm').reset();
+  clearLeadErrors();
+  showScreen('screen-intro');
+}
+
+document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>

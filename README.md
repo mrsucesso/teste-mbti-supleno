@@ -1,6 +1,6 @@
 # Testes Supleno — família de experiências
 
-Site estático em HTML, CSS e JavaScript da família **Testes Supleno**. O Supleno Tipos e o Supleno Estilos estão disponíveis; Supleno Traços segue em construção.
+Site estático em HTML, CSS e JavaScript da família **Testes Supleno**. O Supleno Tipos, o Supleno Estilos e o Supleno Traços estão disponíveis como experiências educativas.
 
 O Supleno Tipos possui 28 perguntas, 16 tipos e páginas de resultado com variação de título no masculino e feminino. O Supleno Estilos possui 24 perguntas de escolha forçada, quatro dimensões comportamentais e quatro resultados educativos.
 
@@ -19,11 +19,11 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 - `/tipos/` (`tipos/index.html`) — introdução, 28 perguntas, captura e resultado resumido
 - `/tipos/resultados/{tipo}-{m|f}.html` — 32 páginas de resultado
 - `/estilos/` — teste educativo de 24 perguntas, com resultado básico imediato e captura opcional posterior
-- `/tracos/` — protótipo educativo interativo, sem captura, resultado ou envio de dados
+- `/tracos/` — teste educativo de 25 afirmações, cinco dimensões contínuas, resultado imediato e captura opcional posterior
 - `assets/style.css` — estilo compartilhado
 - `assets/nav.js` — comportamento do menu responsivo compartilhado
 - `assets/personagens/` — imagens dos personagens
-- `apps-script/Code.gs` — referência de backend do Supleno Tipos; o Supleno Estilos exige endpoint próprio que valide os códigos `D`, `I`, `S` e `C` antes de produção
+- `apps-script/Code.gs` — referência de backend do Supleno Tipos; Supleno Estilos e Supleno Traços exigem endpoints próprios, com validação de seus contratos, antes de produção
 - `PROMPTS-IMAGENS.md` — prompts para criar as ilustrações
 
 ## Configuração necessária antes da produção
@@ -67,6 +67,7 @@ git diff --check
 - Em tipologia, preferir “direcionamento da atenção” ou “preferência de interação”.
 - Resultado descreve tendências; não é diagnóstico nem identidade fixa.
 - Supleno Estilos é inspirado apenas nas quatro dimensões amplamente conhecidas sobre estilos de comportamento. Não é instrumento oficial, licenciado ou clínico.
+- Supleno Traços é uma experiência original inspirada apenas em cinco dimensões amplamente estudadas sobre personalidade. Não é instrumento oficial, licenciado, clínico ou validado cientificamente.
 
 ## URLs provisórias e finais
 
