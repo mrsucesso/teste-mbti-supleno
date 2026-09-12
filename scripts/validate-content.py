@@ -9,16 +9,16 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-INDEX = ROOT / "index.html"
-RESULTS = ROOT / "resultados"
+INDEX = ROOT / "tipos" / "index.html"
+RESULTS = ROOT / "tipos" / "resultados"
 
 errors: list[str] = []
 
 def fail(message: str) -> None:
     errors.append(message)
 
-public_files = [INDEX, ROOT / "apps-script" / "Code.gs", ROOT / "PROMPTS-IMAGENS.md"]
-public_files.extend(sorted(RESULTS.glob("*.html")))
+public_files = [ROOT / "apps-script" / "Code.gs", ROOT / "PROMPTS-IMAGENS.md"]
+public_files.extend(sorted(ROOT.glob("**/*.html")))
 
 parenthetical_gender = re.compile(r"\b[\wÀ-ÿ]+\(a\)", re.IGNORECASE)
 vague_energy = re.compile(r"\benerg(?:ia|ias|izado|izada|izados|izadas)\b", re.IGNORECASE)
@@ -40,7 +40,7 @@ questions_match = re.search(r"const QUESTIONS = (\[.*?\]);\nconst PROFILES", ind
 profiles_match = re.search(r"const PROFILES = (\{.*?\});\nconst ORDER", index_text, re.DOTALL)
 
 if not questions_match or not profiles_match:
-    fail("index.html: não foi possível localizar QUESTIONS ou PROFILES")
+    fail("tipos/index.html: não foi possível localizar QUESTIONS ou PROFILES")
 else:
     questions = json.loads(questions_match.group(1))
     profiles = json.loads(profiles_match.group(1))

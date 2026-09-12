@@ -1,6 +1,6 @@
-# Testes Supleno — Supleno Tipos
+# Testes Supleno — família de experiências
 
-Site estático em HTML, CSS e JavaScript do **Supleno Tipos**, o primeiro produto da família **Testes Supleno**.
+Site estático em HTML, CSS e JavaScript da família **Testes Supleno**. O Supleno Tipos está disponível; Supleno Estilos e Supleno Traços estão em construção.
 
 O teste possui 28 perguntas, 16 tipos e páginas de resultado com variação de título no masculino e feminino.
 
@@ -13,11 +13,14 @@ O teste possui 28 perguntas, 16 tipos e páginas de resultado com variação de 
 
 Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos, bases ou automações de outros projetos.
 
-## Estrutura
+## Rotas e estrutura
 
-- `index.html` — introdução, 28 perguntas, captura e resultado resumido
-- `resultados/{tipo}-{m|f}.html` — 32 páginas de resultado
+- `/` (`index.html`) — portal da família, com Supleno Tipos, Supleno Estilos, Supleno Traços e o futuro Mapa Integrado
+- `/tipos/` (`tipos/index.html`) — introdução, 28 perguntas, captura e resultado resumido
+- `/tipos/resultados/{tipo}-{m|f}.html` — 32 páginas de resultado
+- `/estilos/` e `/tracos/` — protótipos educativos interativos, sem captura, resultado ou envio de dados
 - `assets/style.css` — estilo compartilhado
+- `assets/nav.js` — comportamento do menu responsivo compartilhado
 - `assets/personagens/` — imagens dos personagens
 - `apps-script/Code.gs` — referência de backend para gravação e envio do resultado
 - `PROMPTS-IMAGENS.md` — prompts para criar as ilustrações
@@ -63,15 +66,22 @@ git diff --check
 - Em tipologia, preferir “direcionamento da atenção” ou “preferência de interação”.
 - Resultado descreve tendências; não é diagnóstico nem identidade fixa.
 
-## Publicação
+## URLs provisórias e finais
 
-O protótipo está disponível no GitHub Pages:
+As URLs provisórias do protótipo GitHub Pages são:
 
 - `https://mrsucesso.github.io/teste-mbti-supleno/`
+- `https://mrsucesso.github.io/teste-mbti-supleno/tipos/`
 
-A produção planejada ficará em:
+A produção planejada ficará em (domínio raiz, sem subpath):
 
-- `https://testes.supleno.com/tipos`
+- Portal: `https://testes.supleno.com/`
+- Supleno Tipos: `https://testes.supleno.com/tipos/`
+- Resultados: `https://testes.supleno.com/tipos/resultados/{tipo}-{m|f}.html`
+- Supleno Estilos: `https://testes.supleno.com/estilos/`
+- Supleno Traços: `https://testes.supleno.com/tracos/`
+
+Os caminhos antigos `/resultados/*.html` permanecem como stubs de compatibilidade e apontam para `/tipos/resultados/*.html`. O arquivo `index.html` da raiz agora é o portal; a antiga experiência do teste está em `/tipos/`.
 
 A publicação em produção, a alteração de DNS e qualquer comunicação externa exigem aprovação de Mauricio.
 

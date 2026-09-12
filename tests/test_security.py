@@ -23,11 +23,11 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-INDEX = ROOT / "index.html"
+INDEX = ROOT / "tipos" / "index.html"
 CODE_GS = ROOT / "apps-script" / "Code.gs"
-RESULTS = ROOT / "resultados"
+RESULTS = ROOT / "tipos" / "resultados"
 GITIGNORE = ROOT / ".gitignore"
-CONFIG_EXAMPLE = ROOT / "config.example.js"
+CONFIG_EXAMPLE = ROOT / "tipos" / "config.example.js"
 
 INDEX_TEXT = INDEX.read_text(encoding="utf-8")
 CODE_GS_TEXT = CODE_GS.read_text(encoding="utf-8")
