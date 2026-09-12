@@ -50,7 +50,56 @@ O formulário usa honeypot e, opcionalmente, `CONFIG_TOKEN`/`ACCESS_TOKEN`. Esse
 
 Em homologação sintética, deixe os tokens vazios e use apenas dados fictícios. Antes de publicar, faça uma rajada controlada com dados sintéticos e confirme que o limite é aplicado. CAPTCHA, WAF e monitoramento de cota continuam sendo responsabilidades da camada de publicação; o token público não substitui essas medidas.
 
-Os testes reproduzíveis são executados com:
+### Funil de nutrição (contrato local de homologação)
+
+`backend/funil_store.py` é um adaptador local, em Python padrão (stdlib), que
+serve como referência única do contrato de captura e nutrição de leads
+compartilhado pelos três produtos (Supleno Tipos, Supleno Estilos e Supleno
+Traços). Ele **não é o backend de produção** — isso continua sendo um Apps
+Script por produto, conforme a seção "Rotas e estrutura" — mas existe para
+que o contrato (campos persistidos, idempotência e a sequência de nutrição)
+seja definido uma única vez e validado por TDD, em vez de cada backend por
+produto reinventar essas regras de forma divergente.
+
+Contrato validado por `tests/test_funil_backend.py`:
+
+- **Campos obrigatórios:** nome e e-mail; WhatsApp é opcional; consentimento
+  explícito (`consentimento: true`) é obrigatório para persistir o lead e
+  entrar na sequência — sem ele, o registro é recusado.
+- **Resultado imediato:** o resultado básico aparece na tela do teste antes
+  e independentemente de qualquer captura opcional (ver `screen-result` em
+  cada `index.html`); o funil de e-mail é só uma camada adicional por cima.
+- **Persistência:** teste, resultado, pontuações, UTM (`utm_source`,
+  `utm_medium`, `utm_campaign`), `origem`, data de criação, consentimento e
+  o estado da sequência (`pendente` → `imediato_enviado` → `d1_enviado` →
+  `d3_enviado` → `d5_enviado` → `concluido`, ou `opt_out`) ficam em
+  `leads.jsonl` (um lead por linha).
+- **Idempotência:** reenvios com o mesmo `submission_id` não duplicam o
+  lead; retentativas sem `submission_id` no mesmo dia (mesmo e-mail e mesmo
+  teste) também são deduplicadas — no dia seguinte já contam como uma nova
+  tentativa (reteste legítimo).
+- **Sequência imediato/D1/D3/D5/D7:** `processar_fila()` envia (de forma
+  simulada, em sandbox) no máximo um estágio vencido por lead a cada
+  chamada, na ordem correta, e nunca reenvia um estágio já processado.
+- **Opt-out:** `registrar_opt_out(email)` marca os leads existentes e
+  interrompe a sequência; `esta_opt_out(email)` consulta o estado. Todo
+  template em `TEMPLATES` inclui `{optout_url}`.
+- **Sandbox obrigatório:** `SANDBOX_MODE = True` por padrão. Sem um
+  `adaptador_envio_real` explícito, `FunilStore(sandbox=False, ...)`
+  recusa a inicialização — não há envio real implícito.
+- **Logs sem PII:** `mask_email()` mascara o e-mail em todo log; nome e
+  e-mail brutos nunca aparecem no log do módulo (`backend.funil_store`).
+
+Este módulo é standalone (não é chamado pelos `index.html` dos três
+produtos, que continuam enviando ao `WEBHOOK_URL` configurado por produto)
+e serve para homologar o contrato com dados sintéticos antes de portar as
+mesmas regras para cada Apps Script de produção. Rode com:
+
+```bash
+python3 -m unittest tests/test_funil_backend.py -v
+```
+
+Os testes reproduzíveis (suíte completa) são executados com:
 
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -v
