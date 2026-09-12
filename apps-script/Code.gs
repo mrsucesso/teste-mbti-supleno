@@ -16,9 +16,13 @@
  *      - Executar como: "Eu"
  *      - Quem pode acessar: "Qualquer pessoa"
  *   5. Autorize as permissões pedidas (Planilhas + Gmail)
- *   6. Copie a URL do app da web gerada e cole em WEBHOOK_URL no index.html
- *      (e também em apps-script sempre que reimplantar, a URL pode mudar
- *      se você criar uma NOVA implantação em vez de atualizar a existente)
+ *   6. Copie a URL do app da web gerada e cole em WEBHOOK_URL no config.js
+ *      do site (ver config.example.js), NUNCA direto no index.html versionado
+ *      (e sempre que reimplantar, a URL pode mudar se você criar uma NOVA
+ *      implantação em vez de atualizar a existente)
+ *   7. (Opcional, recomendado antes de ir ao ar) defina o mesmo valor em
+ *      ACCESS_TOKEN aqui embaixo e em CONFIG_TOKEN no config.js — reduz abuso
+ *      casual. Veja "Antiabuso" no README para o racional completo.
  */
 
 // Se a planilha "Leads MBTI" NÃO estiver vinculada a este script
@@ -36,6 +40,31 @@ const CTA_URL = "https://supleno.com"; // TODO: ajustar
 
 // Base do site publicado (para montar o link da página completa no e-mail)
 const SITE_BASE_URL = "https://mrsucesso.github.io/teste-mbti-supleno"; // trocar pelo domínio final após DNS e publicação
+
+/* ============================================================
+   ANTIABUSO — ver seção "Antiabuso" no README para o racional
+   ============================================================ */
+// Token de configuração NÃO SECRETO: o index.html envia este valor em todo
+// envio. Ele fica visível no código-fonte do site (qualquer pessoa pode lê-lo),
+// então NÃO protege contra um atacante determinado — apenas filtra bots
+// genéricos que disparam POSTs para a URL do Web App sem ter visto o site.
+// Deixe em branco ("") para aceitar qualquer envio (modo aberto, usado em
+// homologação). Antes de ir para produção, defina o MESMO valor aqui e em
+// config.js (ver config.example.js) para reduzir abuso casual.
+const ACCESS_TOKEN = "";
+
+// Limites explícitos de taxa (ver README > Antiabuso). Ajuste com cautela:
+// limites baixos demais bloqueiam envios legítimos de uma mesma família/rede.
+const RATE_LIMIT_PER_EMAIL_PER_DAY = 5;   // mesmo e-mail, janela de 24h
+const RATE_LIMIT_GLOBAL_PER_MINUTE = 30;  // todos os envios somados, janela de 60s
+
+// Limite de tamanho do payload recebido (proteção simples contra abuso/DoS trivial)
+const MAX_PAYLOAD_BYTES = 8000;
+
+const VALID_GENDERS = ["M", "F"];
+const NAME_PATTERN = /^[\p{L}\p{M} '.\-]{1,100}$/u;
+const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+const WHATSAPP_PATTERN = /^[0-9 ()+\-]{0,20}$/;
 
 /* ============================================================
    DADOS DOS 16 TIPOS (mesmo conteúdo do site, em formato Apps Script)
@@ -317,24 +346,116 @@ const PROFILES = {
 
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
-    const name = (data.name || "").toString().trim();
-    const email = (data.email || "").toString().trim();
-    const whatsapp = (data.whatsapp || "").toString().trim();
-    const code = (data.code || "").toString().trim().toUpperCase();
-    const gender = (data.gender || "M").toString().trim().toUpperCase();
-    const sigla = (data.sigla || (code + "-" + gender)).toString().trim();
-
-    if (!name || !email || !code || !PROFILES[code]) {
-      return jsonResponse({ ok: false, error: "dados incompletos" });
+    if (!e || !e.postData || !e.postData.contents) {
+      return errorResponse();
+    }
+    if (e.postData.contents.length > MAX_PAYLOAD_BYTES) {
+      return errorResponse();
     }
 
-    appendLead(name, email, whatsapp, sigla);
-    sendResultEmail(name, email, code, gender);
+    let data;
+    try {
+      data = JSON.parse(e.postData.contents);
+    } catch (parseErr) {
+      return errorResponse();
+    }
+    if (!data || typeof data !== "object") {
+      return errorResponse();
+    }
+
+    // Honeypot: campo invisível no formulário que humanos nunca preenchem.
+    // Bots que preenchem todos os campos automaticamente costumam cair aqui.
+    // Respondemos "ok" para não sinalizar ao bot que foi filtrado.
+    const honeypot = (data.website || "").toString().trim();
+    if (honeypot) {
+      return jsonResponse({ ok: true });
+    }
+
+    // Token de configuração não secreto — ver comentário em ACCESS_TOKEN.
+    if (ACCESS_TOKEN) {
+      const token = (data.token || "").toString();
+      if (token !== ACCESS_TOKEN) {
+        return errorResponse();
+      }
+    }
+
+    const validated = validateInput(data);
+    if (!validated) {
+      return errorResponse();
+    }
+
+    if (!checkRateLimit(validated.email)) {
+      return errorResponse();
+    }
+
+    appendLead(validated.name, validated.email, validated.whatsapp, validated.sigla);
+    sendResultEmail(validated.name, validated.email, validated.code, validated.gender);
 
     return jsonResponse({ ok: true });
   } catch (err) {
-    return jsonResponse({ ok: false, error: String(err) });
+    // Nunca expor a exceção crua ao cliente — só no log do servidor.
+    Logger.log("doPost error: " + err);
+    return errorResponse();
+  }
+}
+
+/**
+ * Validação server-side estrita. Retorna um objeto normalizado ou null.
+ * A sigla NUNCA é aceita do cliente — é sempre recalculada a partir de
+ * code + gender, para impedir dados inconsistentes ou injetados na planilha.
+ */
+function validateInput(data) {
+  const name = (data.name || "").toString().trim();
+  const email = (data.email || "").toString().trim();
+  const whatsapp = (data.whatsapp || "").toString().trim();
+  const code = (data.code || "").toString().trim().toUpperCase();
+  const gender = (data.gender || "").toString().trim().toUpperCase();
+
+  if (!NAME_PATTERN.test(name)) return null;
+  if (!EMAIL_PATTERN.test(email)) return null;
+  if (whatsapp && !WHATSAPP_PATTERN.test(whatsapp)) return null;
+  if (!PROFILES[code]) return null;
+  if (VALID_GENDERS.indexOf(gender) === -1) return null;
+
+  const sigla = code + "-" + gender;
+  return { name, email, whatsapp, code, gender, sigla };
+}
+
+/**
+ * Rate limit com PropertiesService + LockService.
+ * Dois limites independentes (ver constantes no topo do arquivo):
+ *  - por e-mail, numa janela de 24h (evita reenvio abusivo da mesma pessoa)
+ *  - global, numa janela de 60s (evita rajadas de um script/bot)
+ * O lock evita condição de corrida entre requisições simultâneas.
+ */
+function checkRateLimit(email) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(3000)) {
+    // Não conseguimos garantir consistência agora — mais seguro recusar
+    // do que arriscar dupla contagem ou perda de limite.
+    return false;
+  }
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const now = Date.now();
+
+    const globalKey = "rl_global_" + Math.floor(now / 60000);
+    const globalCount = Number(props.getProperty(globalKey) || "0") + 1;
+    if (globalCount > RATE_LIMIT_GLOBAL_PER_MINUTE) {
+      return false;
+    }
+    props.setProperty(globalKey, String(globalCount));
+
+    const emailKey = "rl_email_" + email.toLowerCase() + "_" + Math.floor(now / 86400000);
+    const emailCount = Number(props.getProperty(emailKey) || "0") + 1;
+    if (emailCount > RATE_LIMIT_PER_EMAIL_PER_DAY) {
+      return false;
+    }
+    props.setProperty(emailKey, String(emailCount));
+
+    return true;
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -350,9 +471,38 @@ function getSheet() {
   return sheet;
 }
 
+/**
+ * Impede injeção de fórmula em planilhas: se o valor começar com um dos
+ * caracteres que o Sheets interpreta como início de fórmula (=, +, -, @) ou
+ * com tab/quebra de linha, prefixa com apóstrofo para forçar texto puro.
+ */
+function sanitizeForSheet(value) {
+  const str = String(value);
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return "'" + str;
+  }
+  return str;
+}
+
 function appendLead(name, email, whatsapp, sigla) {
   const sheet = getSheet();
-  sheet.appendRow([new Date(), name, email, sigla, whatsapp]);
+  sheet.appendRow([
+    new Date(),
+    sanitizeForSheet(name),
+    sanitizeForSheet(email),
+    sanitizeForSheet(sigla),
+    sanitizeForSheet(whatsapp)
+  ]);
+}
+
+/** Escapa HTML para evitar injeção de marcação no corpo do e-mail. */
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function sendResultEmail(name, email, code, gender) {
@@ -360,18 +510,19 @@ function sendResultEmail(name, email, code, gender) {
   const p = PROFILES[code];
   const typeName = p["name_" + gk];
   const desc = p["desc_" + gk];
-  const strengths = p.strengths.map(s => `<li>${s}</li>`).join("");
-  const growth = p.growth.map(s => `<li>${s}</li>`).join("");
+  const strengths = p.strengths.map(s => `<li>${escapeHtml(s)}</li>`).join("");
+  const growth = p.growth.map(s => `<li>${escapeHtml(s)}</li>`).join("");
   const fullPageUrl = `${SITE_BASE_URL}/resultados/${code.toLowerCase()}-${gk}.html`;
+  const safeName = escapeHtml(name);
 
   const subject = `Seu resultado: ${typeName} (${code}-${gender})`;
   const html = `
     <div style="font-family:Arial,sans-serif; max-width:560px; margin:0 auto; color:#2B2420;">
       <p style="text-transform:uppercase; letter-spacing:.08em; font-size:12px; color:#1F4B4C; font-weight:bold;">Método Supleno</p>
-      <h1 style="color:#163736; font-size:24px;">${typeName}</h1>
+      <h1 style="color:#163736; font-size:24px;">${escapeHtml(typeName)}</h1>
       <p style="font-size:32px; font-weight:800; color:#C15A38; margin:0 0 16px;">${code}-${gender}</p>
-      <p style="font-size:15px; line-height:1.6;">Olá, ${name}! Aqui está o seu resultado completo do Teste de Perfil de Personalidade.</p>
-      <p style="font-size:15px; line-height:1.6;">${desc}</p>
+      <p style="font-size:15px; line-height:1.6;">Olá, ${safeName}! Aqui está o seu resultado completo do Teste de Perfil de Personalidade.</p>
+      <p style="font-size:15px; line-height:1.6;">${escapeHtml(desc)}</p>
       <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:#1F4B4C;">Pontos Fortes</h3>
       <ul style="font-size:14.5px; line-height:1.6;">${strengths}</ul>
       <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:#1F4B4C;">Caminhos de Desenvolvimento</h3>
@@ -397,6 +548,11 @@ function jsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
+/** Resposta de erro genérica — nunca expõe detalhes internos ao cliente. */
+function errorResponse() {
+  return jsonResponse({ ok: false, error: "Não foi possível processar sua solicitação." });
+}
+
 // Função de teste manual — rode pelo editor do Apps Script (menu Executar) para
 // conferir se a planilha e o envio de e-mail estão funcionando, sem precisar do site.
 function testeManual() {
@@ -407,7 +563,9 @@ function testeManual() {
         email: Session.getActiveUser().getEmail(),
         whatsapp: "",
         code: "INTJ",
-        gender: "F"
+        gender: "F",
+        website: "", // honeypot — deve ficar sempre vazio
+        token: ACCESS_TOKEN // só é exigido se ACCESS_TOKEN estiver configurado
       })
     }
   };

@@ -1,0 +1,8 @@
+# Configuração local com URL de webhook e token — nunca versionar.
+# Copie config.example.js para config.js e preencha os valores reais.
+config.js
+
+# Arquivos comuns de SO e editor
+.DS_Store
+Thumbs.db
+*.swp

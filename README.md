@@ -25,7 +25,7 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 ## Configuração necessária antes da produção
 
 1. Definir e implantar o backend de captura do Supleno.
-2. Informar a URL publicada em `WEBHOOK_URL` no `index.html`.
+2. Informar a URL publicada em `WEBHOOK_URL` no `config.js` local (a partir de `config.example.js`).
 3. Confirmar `CTA_URL` e `SITE_BASE_URL` no frontend e no backend.
 4. Criar as imagens e substituir todos os espaços reservados.
 5. Configurar origem, UTM, consentimento e métricas.
@@ -33,6 +33,26 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 7. Homologar o fluxo completo com dados sintéticos.
 
 Enquanto `WEBHOOK_URL` estiver vazio, o formulário não grava leads nem envia resultados.
+
+## Configuração e segurança
+
+A configuração de execução fica fora do código versionado. Copie `config.example.js` para `config.js` e preencha `WEBHOOK_URL` somente no ambiente de publicação. O arquivo `config.js` está no `.gitignore`; nunca coloque URL de webhook real, token ou credencial em `index.html`, `Code.gs` ou neste repositório.
+
+O backend valida novamente todos os campos, aceita somente os gêneros `M` e `F`, recalcula a sigla do tipo, limita o payload a 8 KB, escapa HTML de e-mails e protege células contra injeção de fórmula. Erros internos são registrados no Apps Script, mas não são devolvidos ao navegador.
+
+### Antiabuso
+
+O formulário usa honeypot e, opcionalmente, `CONFIG_TOKEN`/`ACCESS_TOKEN`. Esse token fica visível no JavaScript público e não é segredo: ele apenas filtra robôs casuais. Antes da produção, configure o mesmo valor nos dois lados. O Apps Script também aplica limite de 5 envios por e-mail em 24 horas e 30 envios globais por minuto, usando `PropertiesService` e `LockService`. Excesso é recusado com resposta genérica.
+
+Em homologação sintética, deixe os tokens vazios e use apenas dados fictícios. Antes de publicar, faça uma rajada controlada com dados sintéticos e confirme que o limite é aplicado. CAPTCHA, WAF e monitoramento de cota continuam sendo responsabilidades da camada de publicação; o token público não substitui essas medidas.
+
+Os testes reproduzíveis são executados com:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+python3 scripts/validate-content.py
+git diff --check
+```
 
 ## Governança editorial
 

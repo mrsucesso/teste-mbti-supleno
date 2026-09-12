@@ -20,10 +20,10 @@
     <section id="screen-intro" class="screen active">
       <h1>Descubra seu Perfil de Personalidade</h1>
       <p class="lead">Um teste baseado nas quatro dimensões clássicas da tipologia de personalidade (interação, percepção, decisão e organização). Leva cerca de 5 minutos.</p>
-      <p style="font-size:13px; font-weight:600; color:var(--ink-soft); margin:0 0 6px;">Ver resultado na versão:</p>
-      <div class="gender-toggle">
-        <div class="gender-opt selected" id="optM" onclick="setGender('M')">Masculina</div>
-        <div class="gender-opt" id="optF" onclick="setGender('F')">Feminina</div>
+      <p id="genderLabel" style="font-size:13px; font-weight:600; color:var(--ink-soft); margin:0 0 6px;">Ver resultado na versão:</p>
+      <div class="gender-toggle" role="group" aria-labelledby="genderLabel">
+        <button type="button" class="gender-opt selected" id="optM" aria-pressed="true" onclick="setGender('M')">Masculina</button>
+        <button type="button" class="gender-opt" id="optF" aria-pressed="false" onclick="setGender('F')">Feminina</button>
       </div>
       <button class="btn" onclick="startQuiz()">Começar o Teste</button>
       <p class="privacy-note" style="text-align:center; margin-top:14px;">Não existem respostas certas ou erradas — responda com a opção que mais se parece com você.</p>
@@ -32,7 +32,9 @@
     <!-- TELA 2: QUIZ -->
     <section id="screen-quiz" class="screen">
       <div class="progress-wrap">
-        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="28" aria-valuenow="0" aria-labelledby="progressLabel">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
         <div class="progress-label" id="progressLabel">Pergunta 1 de 28</div>
       </div>
       <div class="q-text" id="qText">Com qual afirmação você mais se identifica?</div>
@@ -47,10 +49,28 @@
     <section id="screen-lead" class="screen">
       <h2>Quase lá!</h2>
       <p class="lead">Seu resultado está pronto. Informe seus dados para revelar seu perfil.</p>
-      <form class="lead-form" onsubmit="submitLead(event)">
-        <div class="field"><label for="leadName">Nome</label><input type="text" id="leadName" required autocomplete="name" placeholder="Seu nome"></div>
-        <div class="field"><label for="leadEmail">E-mail</label><input type="email" id="leadEmail" required autocomplete="email" placeholder="seu@email.com"></div>
-        <div class="field"><label for="leadWhats">WhatsApp (opcional)</label><input type="tel" id="leadWhats" autocomplete="tel" placeholder="(27) 99999-9999"></div>
+      <form class="lead-form" id="leadForm" onsubmit="submitLead(event)" novalidate>
+        <div class="field">
+          <label for="leadName">Nome</label>
+          <input type="text" id="leadName" required autocomplete="name" placeholder="Seu nome" aria-describedby="leadNameError">
+          <p class="field-error" id="leadNameError" role="alert"></p>
+        </div>
+        <div class="field">
+          <label for="leadEmail">E-mail</label>
+          <input type="email" id="leadEmail" required autocomplete="email" placeholder="seu@email.com" aria-describedby="leadEmailError">
+          <p class="field-error" id="leadEmailError" role="alert"></p>
+        </div>
+        <div class="field">
+          <label for="leadWhats">WhatsApp (opcional)</label>
+          <input type="tel" id="leadWhats" autocomplete="tel" placeholder="(27) 99999-9999" aria-describedby="leadWhatsError">
+          <p class="field-error" id="leadWhatsError" role="alert"></p>
+        </div>
+        <!-- Honeypot: campo invisível para humanos, usado só para filtrar bots. -->
+        <div class="visually-hidden" aria-hidden="true">
+          <label for="leadWebsite">Não preencha este campo</label>
+          <input type="text" id="leadWebsite" name="website" tabindex="-1" autocomplete="off">
+        </div>
+        <p class="form-error" id="formError" role="alert" style="display:none;"></p>
         <button type="submit" class="btn" id="leadSubmitBtn" style="margin-top:6px;">Ver Meu Resultado</button>
         <p class="privacy-note">Seu resultado completo será enviado para o seu e-mail. Seus dados não são compartilhados com terceiros.</p>
       </form>
@@ -64,7 +84,7 @@
       </div>
       <p class="result-desc" id="resDesc"></p>
       <p class="privacy-note" style="text-align:center; margin-bottom:18px;">📩 Enviamos o resultado completo — pontos fortes e caminhos de desenvolvimento — para o seu e-mail.</p>
-      <a class="btn secondary" id="resFullLink" href="#" target="_blank">Ver Página Completa do Perfil</a>
+      <a class="btn secondary" id="resFullLink" href="#" target="_blank" rel="noopener noreferrer">Ver Página Completa do Perfil</a>
       <button class="btn" style="margin-top:12px;" onclick="restartQuiz()">Refazer o Teste</button>
     </section>
 
@@ -72,10 +92,22 @@
   <footer class="bottom">&copy; <span id="year"></span> Método Supleno — Teste de autoconhecimento para fins educativos, não substitui avaliação psicológica profissional.</footer>
 </div>
 
+<!--
+  config.js NÃO é versionado (ver .gitignore) e é opcional: se ausente, o site
+  funciona normalmente em modo aberto/local (sem envio de webhook). Copie
+  config.example.js para config.js e preencha antes de publicar em produção.
+  onerror trata o 404 esperado ao abrir via file:// sem config.js copiado,
+  registrando um aviso claro em vez de deixar só o erro de rede do navegador.
+-->
+<script src="config.js" onerror="window.SUPLENO_CONFIG = window.SUPLENO_CONFIG || {}; console.info('config.js não encontrado — rodando em modo aberto/local (ver README > Configuração).');"></script>
 <script>
-/* ================= CONFIGURAÇÃO ================= */
-const CTA_URL = "https://supleno.com";           // TODO: ajustar
-const WEBHOOK_URL = "";   // TODO: colar a URL do Apps Script Web App (ver apps-script/Code.gs)
+/* ================= CONFIGURAÇÃO =================
+   Valores reais ficam em config.js (gitignored, ver config.example.js).
+   Aqui só definimos os padrões seguros usados quando config.js não existe. */
+const SUPLENO_CONFIG = window.SUPLENO_CONFIG || {};
+const CTA_URL = SUPLENO_CONFIG.CTA_URL || "https://supleno.com";
+const WEBHOOK_URL = SUPLENO_CONFIG.WEBHOOK_URL || ""; // vazio = formulário não envia (modo seguro/local)
+const CONFIG_TOKEN = SUPLENO_CONFIG.CONFIG_TOKEN || ""; // não secreto, ver README > Antiabuso
 
 /* ================= DADOS ================= */
 const QUESTIONS = [{"dim": "EI", "a": {"t": "Depois de um evento social movimentado, costumo ter disposição para continuar conversando e interagindo", "p": "E"}, "b": {"t": "Depois de um evento social movimentado, costumo preferir silêncio e menos interação", "p": "I"}}, {"dim": "EI", "a": {"t": "Penso enquanto falo, elaborando as ideias em voz alta", "p": "E"}, "b": {"t": "Penso antes de falar, elaborando as ideias internamente", "p": "I"}}, {"dim": "EI", "a": {"t": "Prefiro ambientes de trabalho abertos e movimentados", "p": "E"}, "b": {"t": "Prefiro ambientes tranquilos, com poucas interrupções", "p": "I"}}, {"dim": "EI", "a": {"t": "Tenho muitos conhecidos e círculos variados", "p": "E"}, "b": {"t": "Tenho poucos vínculos, porém mais profundos", "p": "I"}}, {"dim": "EI", "a": {"t": "Quando bate o tédio, procuro conversar ou fazer algo com outras pessoas", "p": "E"}, "b": {"t": "Quando bate o tédio, prefiro encontrar algo para fazer por conta própria", "p": "I"}}, {"dim": "EI", "a": {"t": "Em grupos, costumo puxar e conduzir a conversa", "p": "E"}, "b": {"t": "Em grupos, costumo observar antes de participar", "p": "I"}}, {"dim": "EI", "a": {"t": "Prefiro gerar ideias em grupo, no coletivo", "p": "E"}, "b": {"t": "Prefiro refletir por conta própria antes de compartilhar ideias", "p": "I"}}, {"dim": "SN", "a": {"t": "Confio mais em fatos concretos e experiência prática", "p": "S"}, "b": {"t": "Confio mais em padrões, possibilidades e intuições", "p": "N"}}, {"dim": "SN", "a": {"t": "Prefiro instruções claras, passo a passo", "p": "S"}, "b": {"t": "Prefiro entender o conceito geral e improvisar o caminho", "p": "N"}}, {"dim": "SN", "a": {"t": "Meu foco está no que é real e tangível agora", "p": "S"}, "b": {"t": "Meu foco está no que pode vir a ser no futuro", "p": "N"}}, {"dim": "SN", "a": {"t": "Considero-me uma pessoa prática e realista", "p": "S"}, "b": {"t": "Considero-me uma pessoa imaginativa e visionária", "p": "N"}}, {"dim": "SN", "a": {"t": "Aprendo melhor com exemplos concretos e aplicados", "p": "S"}, "b": {"t": "Aprendo melhor com teorias, metáforas e analogias", "p": "N"}}, {"dim": "SN", "a": {"t": "Confio em métodos já testados e comprovados", "p": "S"}, "b": {"t": "Confio em inovações e novas possibilidades", "p": "N"}}, {"dim": "SN", "a": {"t": "Presto atenção nos detalhes primeiro", "p": "S"}, "b": {"t": "Presto atenção no quadro geral primeiro", "p": "N"}}, {"dim": "TF", "a": {"t": "Decido com base em lógica e critérios objetivos", "p": "T"}, "b": {"t": "Decido com base em valores e no impacto nas pessoas", "p": "F"}}, {"dim": "TF", "a": {"t": "Dou feedback direto, mesmo que possa doer", "p": "T"}, "b": {"t": "Suavizo o feedback para preservar o vínculo", "p": "F"}}, {"dim": "TF", "a": {"t": "Prezo mais pela justiça — regras iguais para todos", "p": "T"}, "b": {"t": "Prezo mais pela compreensão do caso individual", "p": "F"}}, {"dim": "TF", "a": {"t": "Analiso prós e contras com distanciamento", "p": "T"}, "b": {"t": "Considero como cada opção afeta as pessoas envolvidas", "p": "F"}}, {"dim": "TF", "a": {"t": "As pessoas costumam me considerar alguém racional", "p": "T"}, "b": {"t": "As pessoas costumam me considerar alguém com facilidade para compreender sentimentos", "p": "F"}}, {"dim": "TF", "a": {"t": "Conflitos se resolvem com argumentos sólidos", "p": "T"}, "b": {"t": "Conflitos se resolvem restaurando a harmonia", "p": "F"}}, {"dim": "TF", "a": {"t": "Critico ideias sem me preocupar tanto em ferir quem as defende", "p": "T"}, "b": {"t": "Cuido de como a crítica será recebida antes de fazê-la", "p": "F"}}, {"dim": "JP", "a": {"t": "Gosto de ter tudo planejado com antecedência", "p": "J"}, "b": {"t": "Gosto de manter minhas opções em aberto", "p": "P"}}, {"dim": "JP", "a": {"t": "Costumo terminar tarefas antes do prazo", "p": "J"}, "b": {"t": "Trabalho melhor sob pressão, perto do prazo", "p": "P"}}, {"dim": "JP", "a": {"t": "Prefiro rotina e previsibilidade", "p": "J"}, "b": {"t": "Prefiro espontaneidade e variedade", "p": "P"}}, {"dim": "JP", "a": {"t": "Listas e cronogramas me trazem alívio", "p": "J"}, "b": {"t": "Listas e cronogramas me trazem sensação de aprisionamento", "p": "P"}}, {"dim": "JP", "a": {"t": "Prefiro decidir logo e seguir em frente", "p": "J"}, "b": {"t": "Prefiro manter a decisão em aberto o máximo possível", "p": "P"}}, {"dim": "JP", "a": {"t": "Organização é essencial para o meu bem-estar", "p": "J"}, "b": {"t": "Flexibilidade é essencial para o meu bem-estar", "p": "P"}}, {"dim": "JP", "a": {"t": "Gosto de viagens com roteiro planejado", "p": "J"}, "b": {"t": "Gosto de viagens livres, decidindo na hora", "p": "P"}}];
@@ -91,8 +123,12 @@ let scores = {};
 
 function setGender(g){
   gender = g;
-  document.getElementById('optM').classList.toggle('selected', g==='M');
-  document.getElementById('optF').classList.toggle('selected', g==='F');
+  const optM = document.getElementById('optM');
+  const optF = document.getElementById('optF');
+  optM.classList.toggle('selected', g==='M');
+  optM.setAttribute('aria-pressed', g==='M' ? 'true' : 'false');
+  optF.classList.toggle('selected', g==='F');
+  optF.setAttribute('aria-pressed', g==='F' ? 'true' : 'false');
 }
 
 function shuffle(arr){
@@ -129,6 +165,7 @@ function renderQuestion(){
   });
   document.getElementById('progressLabel').textContent = `Pergunta ${current+1} de ${QUESTIONS.length}`;
   document.getElementById('progressFill').style.width = `${(current/QUESTIONS.length)*100}%`;
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(current));
   document.getElementById('backBtn').style.visibility = current===0 ? 'hidden' : 'visible';
 }
 
@@ -144,6 +181,7 @@ function finishQuiz(){
   scores = {E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0};
   answers.forEach(p=>{ if(p) scores[p]++; });
   document.getElementById('progressFill').style.width = '100%';
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(QUESTIONS.length));
   showScreen('screen-lead');
 }
 
@@ -155,24 +193,104 @@ function computeType(){
   return ei+sn+tf+jp;
 }
 
-function submitLead(e){
-  e.preventDefault();
+/* Mesmas regras do backend (ver apps-script/Code.gs) para dar feedback
+   imediato ao usuário — a validação que vale é sempre a do servidor. */
+const NAME_PATTERN = /^[\p{L}\p{M} '.\-]{1,100}$/u;
+const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+const WHATSAPP_PATTERN = /^[0-9 ()+\-]{0,20}$/;
+
+function clearLeadErrors(){
+  ['leadNameError','leadEmailError','leadWhatsError'].forEach(id=>{
+    document.getElementById(id).textContent = '';
+  });
+  ['leadName','leadEmail','leadWhats'].forEach(id=>{
+    document.getElementById(id).removeAttribute('aria-invalid');
+  });
+  const formError = document.getElementById('formError');
+  formError.style.display = 'none';
+  formError.textContent = '';
+}
+
+function setFieldError(inputId, errorId, message){
+  document.getElementById(inputId).setAttribute('aria-invalid', 'true');
+  document.getElementById(errorId).textContent = message;
+}
+
+function validateLeadForm(){
+  clearLeadErrors();
   const name = document.getElementById('leadName').value.trim();
   const email = document.getElementById('leadEmail').value.trim();
   const whats = document.getElementById('leadWhats').value.trim();
+  let firstInvalid = null;
+
+  if(!NAME_PATTERN.test(name)){
+    setFieldError('leadName','leadNameError','Informe seu nome (só letras, espaços e hífen, até 100 caracteres).');
+    firstInvalid = firstInvalid || 'leadName';
+  }
+  if(!EMAIL_PATTERN.test(email)){
+    setFieldError('leadEmail','leadEmailError','Informe um e-mail válido.');
+    firstInvalid = firstInvalid || 'leadEmail';
+  }
+  if(whats && !WHATSAPP_PATTERN.test(whats)){
+    setFieldError('leadWhats','leadWhatsError','Use apenas números, espaços, parênteses, + e - (até 20 caracteres).');
+    firstInvalid = firstInvalid || 'leadWhats';
+  }
+
+  if(firstInvalid){
+    document.getElementById(firstInvalid).focus();
+    return null;
+  }
+  return { name, email, whats };
+}
+
+function submitLead(e){
+  e.preventDefault();
+
+  // Honeypot: se o campo invisível foi preenchido, é quase certamente um bot.
+  // Fingimos sucesso e não fazemos nenhuma chamada de rede real.
+  const honeypot = document.getElementById('leadWebsite').value.trim();
+  if(honeypot){
+    showResult(computeType(), gender);
+    return;
+  }
+
+  const fields = validateLeadForm();
+  if(!fields){
+    return;
+  }
+  const { name, email, whats } = fields;
   const code = computeType();
   const sigla = `${code}-${gender}`;
   const btn = document.getElementById('leadSubmitBtn');
   btn.disabled = true; btn.textContent = 'Enviando...';
 
-  const payload = { name, email, whatsapp: whats, code, gender, sigla, date: new Date().toISOString() };
+  const payload = {
+    name, email, whatsapp: whats, code, gender, sigla,
+    website: honeypot, token: CONFIG_TOKEN,
+    date: new Date().toISOString()
+  };
 
   if(WEBHOOK_URL){
+    // Melhor esforço: validamos a resposta só para diagnóstico (console),
+    // mas nunca bloqueamos a experiência do usuário por causa dela — o
+    // resultado sempre aparece na tela, mesmo se o backend falhar.
     fetch(WEBHOOK_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'}, // evita preflight CORS no Apps Script
       body: JSON.stringify(payload)
-    }).catch(()=>{ /* best-effort — não bloqueia a experiência */ })
+    }).then(response => {
+        if(!response.ok){
+          console.warn('Webhook respondeu com status HTTP ' + response.status);
+          return null;
+        }
+        return response.json().catch(()=> null);
+      })
+      .then(data => {
+        if(data && data.ok !== true){
+          console.warn('Webhook processou a requisição, mas retornou falha:', data.error || data);
+        }
+      })
+      .catch(err => console.warn('Falha ao contatar o webhook (best-effort):', err))
       .finally(()=> showResult(code, gender));
   } else {
     showResult(code, gender);
@@ -191,7 +309,13 @@ function showResult(code, g){
   showScreen('screen-result');
 }
 
-function restartQuiz(){ showScreen('screen-intro'); }
+function restartQuiz(){
+  const btn = document.getElementById('leadSubmitBtn');
+  btn.disabled = false; btn.textContent = 'Ver Meu Resultado';
+  document.getElementById('leadForm').reset();
+  clearLeadErrors();
+  showScreen('screen-intro');
+}
 
 document.getElementById('year').textContent = new Date().getFullYear();
 </script>
