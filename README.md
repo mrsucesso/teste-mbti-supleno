@@ -31,6 +31,12 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 - `apps-script/Code.gs` — backend de produção compartilhado e configurável dos três produtos; valida `teste`, `resultado` e `pontuacoes` conforme o contrato de cada experiência
 - `PROMPTS-IMAGENS.md` — prompts para criar as ilustrações
 
+## Publicação
+
+A produção é servida pelo projeto Cloudflare Pages `testes-supleno`, no domínio `https://testes.supleno.com`. O GitHub mantém a fonte e o histórico; o deploy é manual e deve partir da `main` validada.
+
+Não publique a raiz inteira do repositório. O pacote público contém somente `index.html`, `404.html`, `robots.txt`, `sitemap.xml`, `assets/`, `resultados/`, `tipos/`, `estilos/` e `tracos/`. Durante o empacotamento, cada `config.example.js` seguro é copiado para `config.js`; `backend/`, `tests/`, `apps-script/`, `.git/` e `.github/` ficam fora do deploy.
+
 ## Configuração necessária antes da produção
 
 1. Implantar uma cópia de `apps-script/Code.gs` como backend compartilhado. O mesmo endpoint valida os contratos distintos de Tipos, Estilos e Traços.
