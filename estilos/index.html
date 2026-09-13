@@ -261,12 +261,12 @@ function showScreen(id){
 }
 
 function restoreSavedResult(saved){
-  if(!saved || saved.progresso !== QUESTIONS.length || typeof saved.resultado !== 'string' || !RESULTS[saved.resultado]) return false;
+  if(!saved || saved.progresso !== QUESTIONS.length || !saved.resultado || !RESULTS[saved.resultado.code]) return false;
   if(!Array.isArray(saved.respostas) || saved.respostas.length !== QUESTIONS.length || saved.respostas.some(p => !['D','I','S','C'].includes(p))) return false;
   scores = {D:0,I:0,S:0,C:0};
   saved.respostas.forEach(p => scores[p]++);
   answers = saved.respostas.slice();
-  currentStyle = saved.resultado;
+  currentStyle = saved.resultado.code;
   renderResult(currentStyle);
   showScreen('screen-result');
   return true;
@@ -327,7 +327,7 @@ function finishQuiz(){
   document.getElementById('progressFill').style.width = '100%';
   document.querySelector('.progress-track').setAttribute('aria-valuenow', String(QUESTIONS.length));
   currentStyle = computeStyle();
-  SuplenoProgresso.salvar('estilos', {ordem: order, respostas: answers, progresso: QUESTIONS.length, resultado: currentStyle});
+  SuplenoProgresso.salvar('estilos', {ordem: order, respostas: answers, progresso: QUESTIONS.length, resultado: {code: currentStyle}});
   SuplenoFunil.trackConclusao('estilos', {total_perguntas: QUESTIONS.length});
   renderResult(currentStyle);
   showScreen('screen-result');
@@ -461,7 +461,7 @@ function submitLead(e){
   }
   const { name, email } = fields;
   const payload = {
-    name, email, whatsapp: document.getElementById('leadWhats').value.trim(), consentimento: true, teste: 'estilos', resultado: currentStyle, pontuacoes: scores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: (() => { try { return document.referrer ? new URL(document.referrer).origin : ''; } catch (_) { return ''; } })(), scores: currentStyle,
+    name, email, whatsapp: document.getElementById('leadWhats').value.trim(), consentimento: true, teste: 'estilos', resultado: {code: currentStyle}, pontuacoes: scores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: (() => { try { return document.referrer ? new URL(document.referrer).origin : ''; } catch (_) { return ''; } })(), scores: currentStyle,
     website: honeypot, token: CONFIG_TOKEN,
     date: new Date().toISOString()
   };
@@ -491,12 +491,12 @@ function submitLead(e){
         return response.json().catch(()=> null);
       })
       .then(data => {
-        if(data && data.ok !== true){
+        if(data && ['accepted','duplicate','suppressed'].indexOf(data.status) === -1){
           console.warn('Webhook processou a requisição, mas retornou falha:', data.error || data);
         }
         return data;
       })
-      .then(data => showLeadSent(Boolean(data && data.ok === true)))
+      .then(data => showLeadSent(Boolean(data && ['accepted','duplicate','suppressed'].indexOf(data.status) !== -1)))
       .catch(err => { console.warn('Falha ao contatar o webhook:', err); showLeadSent(false); });
   } else {
     showLeadSent(false);

@@ -42,8 +42,24 @@
     return true;
   }
   function validResult(result, produto, valueAnswersForValidation) {
-    if (produto === 'tipos') return !!result && Object.keys(result).length === 2 && VALID_TIPO_RESULTS[result.code] === true && (result.gender === 'M' || result.gender === 'F');
-    if (produto === 'estilos') return typeof result === 'string' && VALID_ESTILOS[result] === true;
+    if (produto === 'tipos') {
+      if (!result || Object.keys(result).length !== 2 || VALID_TIPO_RESULTS[result.code] !== true || (result.gender !== 'M' && result.gender !== 'F')) return false;
+      if (valueAnswersForValidation && valueAnswersForValidation.length === 28 && valueAnswersForValidation.every(function (answer) { return answer !== null; })) {
+        var typeScores = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+        valueAnswersForValidation.forEach(function (answer) { typeScores[answer]++; });
+        return result.code === (typeScores.E >= typeScores.I ? 'E' : 'I') + (typeScores.S >= typeScores.N ? 'S' : 'N') + (typeScores.T >= typeScores.F ? 'T' : 'F') + (typeScores.J >= typeScores.P ? 'J' : 'P');
+      }
+      return true;
+    }
+    if (produto === 'estilos') {
+      if (!result || typeof result !== 'object' || Object.keys(result).length !== 1 || !VALID_ESTILOS[result.code]) return false;
+      if (valueAnswersForValidation && valueAnswersForValidation.length && valueAnswersForValidation.every(function (answer) { return answer !== null; })) {
+        var styleScores = { D: 0, I: 0, S: 0, C: 0 };
+        valueAnswersForValidation.forEach(function (answer) { styleScores[answer]++; });
+        return result.code === Object.keys(styleScores).reduce(function (best, code) { return styleScores[code] > styleScores[best] ? code : best; }, 'D');
+      }
+      return true;
+    }
     var dimensions = { SO: true, AN: true, OM: true, TE: true, CO: true };
     if (!result || typeof result !== 'object') return false;
     if (Object.keys(result).length !== 5 || !TRACOS_DIMENSIONS.every(function (dim) { return Object.prototype.hasOwnProperty.call(result, dim); })) return false;

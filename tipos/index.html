@@ -373,12 +373,13 @@ function submitLead(e){
         return response.json().catch(()=> null);
       })
       .then(data => {
-        if(data && data.ok !== true){
+        // data.ok !== true é legado; o contrato canônico valida status.
+        if(data && ['accepted','duplicate','suppressed'].indexOf(data.status) === -1){
           console.warn('Webhook processou a requisição, mas retornou falha:', data.error || data);
         }
         return data;
       })
-      .then(data => { transmitted = Boolean(data && data.ok === true); showLeadOutcome(transmitted); return data; })
+      .then(data => { transmitted = Boolean(data && ['accepted','duplicate','suppressed'].indexOf(data.status) !== -1); showLeadOutcome(transmitted); return data; })
       .catch(err => { console.warn('Falha ao contatar o webhook:', err); showLeadOutcome(false); })
       .finally(()=> showResult(code, gender));
   } else {

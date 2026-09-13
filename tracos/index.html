@@ -537,12 +537,12 @@ function submitLead(e){
         return response.json().catch(()=> null);
       })
       .then(data => {
-        if(data && data.ok !== true){
+        if(data && ['accepted','duplicate','suppressed'].indexOf(data.status) === -1){
           console.warn('Webhook processou a requisição, mas retornou falha:', data.error || data);
         }
         return data;
       })
-      .then(data => showLeadSent(Boolean(data && data.ok === true)))
+      .then(data => showLeadSent(Boolean(data && ['accepted','duplicate','suppressed'].indexOf(data.status) !== -1)))
       .catch(err => { console.warn('Falha ao contatar o webhook:', err); showLeadSent(false); });
   } else {
     showLeadSent(false);

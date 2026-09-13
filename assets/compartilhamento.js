@@ -15,8 +15,12 @@
     if (global.navigator && global.navigator.clipboard && global.navigator.clipboard.writeText) {
       return global.navigator.clipboard.writeText(text).then(function () {
         status('Texto do resultado copiado.');
-      });
+        return true;
+      }).catch(function () { return fallbackCopy(text); });
     }
+    return fallbackCopy(text);
+  }
+  function fallbackCopy(text) {
     var area = global.document.createElement('textarea');
     area.value = text; area.setAttribute('readonly', ''); area.className = 'visually-hidden';
     global.document.body.appendChild(area); area.select();

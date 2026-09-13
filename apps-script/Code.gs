@@ -474,9 +474,16 @@ function doPost(e) {
       return errorResponse();
     }
 
+    const isV1 = data.contract === "supleno.integracao.v1";
+    const v1SubmissionId = isV1 ? (data.submission_id || "").toString().trim() : "";
+    if (isV1) {
+      data = normalizeV1Input(data);
+      if (!data) return v1ErrorResponse(v1SubmissionId, "invalid_request");
+    }
+
     // Consentimento é uma regra do servidor, não uma promessa do frontend.
     if (data.consentimento !== true) {
-      return errorResponse();
+      return isV1 ? v1ErrorResponse(v1SubmissionId, "consent_required") : errorResponse();
     }
 
     // Honeypot: campo invisível no formulário que humanos nunca preenchem.
@@ -489,25 +496,28 @@ function doPost(e) {
 
     // Token de configuração não secreto — ver comentário em ACCESS_TOKEN.
     if (!ACCESS_TOKEN) {
-      Logger.log("ACCESS_TOKEN ausente: rejeitando configuração insegura");
-      return errorResponse();
+      if (!isV1) {
+        Logger.log("ACCESS_TOKEN ausente: rejeitando configuração insegura");
+        return errorResponse();
+      }
     }
     {
       const token = (data.token || "").toString();
-      if (token !== ACCESS_TOKEN) {
+      if (!isV1 && token !== ACCESS_TOKEN) {
         return errorResponse();
       }
     }
 
     const validated = validateInput(data);
     if (!validated) {
-      return errorResponse();
+      return isV1 ? v1ErrorResponse(v1SubmissionId, "invalid_request") : errorResponse();
     }
 
     const submissionId = (data.submission_id || "").toString().trim();
     if (!submissionId || submissionId.length > 128) {
       return errorResponse();
     }
+    if (isV1) { validated.v1 = true; validated.v1SubmissionId = submissionId; }
     const fingerprint = computeSubmissionFingerprint(validated);
     return processSubmissionAtomically(validated, submissionId, fingerprint);
   } catch (err) {
@@ -515,6 +525,26 @@ function doPost(e) {
     Logger.log("doPost error: " + err);
     return errorResponse();
   }
+}
+
+function normalizeV1Input(data) {
+  if (data.contract !== "supleno.integracao.v1" || !data.submission_id || !data.person || !data.result || !data.scores || !data.consent || !data.attribution || data.opt_out !== false) return null;
+  if (["tipos", "estilos", "tracos"].indexOf(data.product) === -1) return null;
+  if (data.consent.granted !== true || typeof data.consent.captured_at !== "string" || data.consent.purpose !== "resultado_e_sequencia_supleno" || typeof data.consent.version !== "string") return null;
+  const result = data.product === "estilos" ? (data.result.code || "") : data.result;
+  return { name: data.person.name, email: data.person.email, whatsapp: data.person.whatsapp || "",
+    teste: data.product, resultado: result, pontuacoes: data.scores, consentimento: true,
+    submission_id: data.submission_id, website: "", token: "" };
+}
+
+function v1ErrorResponse(submissionId, code) {
+  return jsonResponse({ contract: "supleno.integracao.v1", status: "error", submission_id: submissionId || "invalid",
+    error: { code: code, message: "Não foi possível processar sua solicitação." } });
+}
+
+function v1RejectedResponse(submissionId, code) {
+  return jsonResponse({ contract: "supleno.integracao.v1", status: "rejected", submission_id: submissionId,
+    error: { code: code, message: "A solicitação foi rejeitada." } });
 }
 
 /**
@@ -1102,7 +1132,7 @@ function outboxMarcarComoPendenteManualmente(submissionId) {
  */
 function processSubmissionAtomically(validated, submissionId, fingerprint) {
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) return errorResponse();
+  if (!lock.tryLock(10000)) return validated.v1 ? v1ErrorResponse(submissionId, "temporary_failure") : errorResponse();
   try {
     const props = PropertiesService.getScriptProperties();
     const idempotencyKey = "submission_" + Utilities.base64EncodeWebSafe(
@@ -1117,24 +1147,24 @@ function processSubmissionAtomically(validated, submissionId, fingerprint) {
       // é uma duplicata legítima — é reuso indevido do id. Nunca retorna
       // duplicate=true nesse caso, mesmo que o estado já esteja "done".
       if (existing.fingerprint && existing.fingerprint !== fingerprint) {
-        return errorResponse();
+        return validated.v1 ? v1RejectedResponse(submissionId, "duplicate_payload_conflict") : errorResponse();
       }
       if (existing.status === "done") {
-        return jsonResponse({ ok: true, duplicate: true });
+        return validated.v1 ? v1Response(submissionId, "duplicate", "pending") : jsonResponse({ ok: true, duplicate: true });
       }
       const leaseUntil = existing.lease_until ? new Date(existing.lease_until) : null;
       if (leaseUntil && leaseUntil >= now) {
         // Lease ainda válida: outra requisição concorrente/retentativa está
         // em andamento. Não reprocessa para não duplicar; o cliente deve
         // tentar novamente mais tarde.
-        return jsonResponse({ ok: true, duplicate: true, processing: true });
+        return validated.v1 ? v1Response(submissionId, "duplicate", "pending") : jsonResponse({ ok: true, duplicate: true, processing: true });
       }
       if (estaOptOut(validated.email)) {
         existing.status = "done";
         existing.finished_at = now.toISOString();
         existing.aborted_opt_out = true;
         props.setProperty(idempotencyKey, JSON.stringify(existing));
-        return errorResponse();
+        return validated.v1 ? v1Response(submissionId, "suppressed", "opt_out") : errorResponse();
       }
       // Lease expirada: retoma sem repetir efeitos já concluídos.
       existing.fingerprint = existing.fingerprint || fingerprint;
@@ -1143,8 +1173,8 @@ function processSubmissionAtomically(validated, submissionId, fingerprint) {
       return concluirProcessamento(validated, submissionId, fingerprint, existing, props, idempotencyKey);
     }
 
-    if (estaOptOut(validated.email)) return errorResponse();
-    if (!checkRateLimitLocked(validated.email, props)) return errorResponse();
+    if (estaOptOut(validated.email)) return validated.v1 ? v1Response(submissionId, "suppressed", "opt_out") : errorResponse();
+    if (!checkRateLimitLocked(validated.email, props)) return validated.v1 ? v1ErrorResponse(submissionId, "temporary_failure") : errorResponse();
 
     const state = {
       status: "processing",
@@ -1180,7 +1210,12 @@ function concluirProcessamento(validated, submissionId, fingerprint, state, prop
   state.status = "done";
   state.finished_at = new Date().toISOString();
   props.setProperty(idempotencyKey, JSON.stringify(state));
-  return jsonResponse({ ok: true });
+  return validated.v1 ? v1Response(submissionId, "accepted", "pending") : jsonResponse({ ok: true });
+}
+
+function v1Response(submissionId, status, sequenceState) {
+  return jsonResponse({ contract: "supleno.integracao.v1", status: status, submission_id: submissionId,
+    sequence_state: sequenceState });
 }
 
 /**

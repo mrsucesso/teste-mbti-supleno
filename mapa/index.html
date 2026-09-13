@@ -69,7 +69,7 @@ function resumoFaixas(tracos){
 }
 document.querySelector('[data-action="apagar"]').addEventListener('click',function(){SuplenoMapa.produtos.forEach(SuplenoProgresso.apagar); render(); feedback('Dados locais dos três testes apagados.');});
 document.querySelector('[data-action="imprimir"]').addEventListener('click',function(){window.print()});
-document.querySelector('[data-action="compartilhar"]').addEventListener('click',function(){var text=SuplenoMapa.textoCompartilhamento(SuplenoMapa.combinar()); if(navigator.share){navigator.share({title:'Meu Mapa Integrado Supleno',text:text,url:location.href}).then(function(){feedback('Mapa compartilhado.')}).catch(function(e){if(e.name!=='AbortError') feedback('Compartilhamento cancelado.');});}else if(navigator.clipboard){navigator.clipboard.writeText(text).then(function(){feedback('Texto do mapa copiado.')});}else{feedback(text)}});
+document.querySelector('[data-action="compartilhar"]').addEventListener('click',function(){var text=SuplenoMapa.textoCompartilhamento(SuplenoMapa.combinar()); if(navigator.share){navigator.share({title:'Meu Mapa Integrado Supleno',text:text,url:location.href}).then(function(){feedback('Mapa compartilhado.')}).catch(function(e){if(e.name!=='AbortError') feedback('Compartilhamento cancelado.');});}else if(navigator.clipboard){navigator.clipboard.writeText(text).then(function(){feedback('Texto do mapa copiado.')}).catch(function(){feedback(text);});}else{feedback(text)}});
 render(); document.getElementById('year').textContent=new Date().getFullYear();
 })();
 </script>

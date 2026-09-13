@@ -2,14 +2,17 @@
 (function (global) {
   'use strict';
   function adaptarCapturaV1(legado) {
-    if (!legado || !legado.product || !legado.submission_id) throw new Error('captura inválida');
+    var product = legado && (legado.product || legado.teste);
+    if (!legado || !product || !legado.submission_id) throw new Error('captura inválida');
     var capturedAt = legado.date || new Date().toISOString();
+    var result = legado.resultado || legado.result || {};
+    if (product === 'estilos' && typeof result === 'string') result = { code: result };
     return {
       contract: 'supleno.integracao.v1',
       submission_id: String(legado.submission_id),
-      product: legado.product,
+      product: product,
       person: { name: legado.name, email: legado.email, whatsapp: legado.whatsapp || '' },
-      result: legado.resultado,
+      result: result,
       scores: legado.pontuacoes || legado.scores || {},
       consent: {
         granted: legado.consentimento === true,
