@@ -55,10 +55,18 @@ function render(){
   }
   node.appendChild(el('h2','Seu mapa está pronto'));
   var grid=el('div',null,'mapa-grid');
-  [['Tipos',mapa.tipo,'Uma lente sobre preferências de personalidade.'],['Estilos',mapa.estilo,'Uma lente sobre seu modo de agir.'],['Traços','5 dimensões','Faixas observadas nas respostas de hoje.']].forEach(function(item){var card=el('div',null,'mapa-item'); card.appendChild(el('small',item[0])); card.appendChild(el('strong',item[1])); card.appendChild(el('span',item[2])); grid.appendChild(card);});
+  [['Tipos',mapa.tipo,'Uma lente sobre preferências de personalidade.'],['Estilos',mapa.estilo,'Uma lente sobre seu modo de agir.'],['Traços',resumoFaixas(mapa.tracos),'Faixas observadas nas respostas de hoje.']].forEach(function(item){var card=el('div',null,'mapa-item'); card.appendChild(el('small',item[0])); card.appendChild(el('strong',item[1])); card.appendChild(el('span',item[2])); grid.appendChild(card);});
   node.appendChild(grid); node.appendChild(el('p','Esses três resultados conversam entre si sem se somar. Observe convergências e diferenças como perguntas para reflexão, não como sentença.'));
 }
 function feedback(msg){document.getElementById('mapaFeedback').textContent=msg}
+function resumoFaixas(tracos){
+  var totais={baixo:0,medio:0,alto:0};
+  ['SO','AN','OM','TE','CO'].forEach(function(dim){
+    var faixa=tracos && tracos[dim] && tracos[dim].faixa;
+    if(Object.prototype.hasOwnProperty.call(totais,faixa)) totais[faixa]++;
+  });
+  return 'Faixas: baixa '+totais.baixo+', média '+totais.medio+', alta '+totais.alto+'.';
+}
 document.querySelector('[data-action="apagar"]').addEventListener('click',function(){SuplenoMapa.produtos.forEach(SuplenoProgresso.apagar); render(); feedback('Dados locais dos três testes apagados.');});
 document.querySelector('[data-action="imprimir"]').addEventListener('click',function(){window.print()});
 document.querySelector('[data-action="compartilhar"]').addEventListener('click',function(){var text=SuplenoMapa.textoCompartilhamento(SuplenoMapa.combinar()); if(navigator.share){navigator.share({title:'Meu Mapa Integrado Supleno',text:text,url:location.href}).then(function(){feedback('Mapa compartilhado.')}).catch(function(e){if(e.name!=='AbortError') feedback('Compartilhamento cancelado.');});}else if(navigator.clipboard){navigator.clipboard.writeText(text).then(function(){feedback('Texto do mapa copiado.')});}else{feedback(text)}});
