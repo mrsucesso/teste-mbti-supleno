@@ -25,6 +25,8 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 - `/tipos/resultados/{tipo}-{m|f}.html` — 32 páginas de resultado
 - `/estilos/` — teste educativo de 24 perguntas, com resultado básico imediato e captura opcional posterior
 - `/tracos/` — teste educativo de 25 afirmações, cinco dimensões contínuas, resultado imediato e captura opcional posterior
+- `/privacidade/` — transparência sobre modo seguro, dados, consentimento, opt-out e retenção a definir
+- `/metodologia/` — metodologia e limitações dos três testes, sem alegação clínica ou científica indevida
 - `assets/style.css` — estilo compartilhado
 - `assets/nav.js` — comportamento do menu responsivo compartilhado
 - `assets/personagens/` — imagens dos personagens
@@ -35,7 +37,7 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 
 A produção é servida pelo projeto Cloudflare Pages `testes-supleno`, no domínio `https://testes.supleno.com`. O GitHub mantém a fonte e o histórico; o deploy é manual e deve partir da `main` validada.
 
-Não publique a raiz inteira do repositório. O pacote público contém somente `index.html`, `404.html`, `robots.txt`, `sitemap.xml`, `assets/`, `resultados/`, `tipos/`, `estilos/` e `tracos/`. Durante o empacotamento, cada `config.example.js` seguro é copiado para `config.js`; `backend/`, `tests/`, `apps-script/`, `.git/` e `.github/` ficam fora do deploy.
+Não publique a raiz inteira do repositório. O pacote público contém somente `index.html`, `404.html`, `robots.txt`, `sitemap.xml`, `assets/`, `resultados/`, `tipos/`, `estilos/`, `tracos/`, `privacidade/` e `metodologia/`. Durante o empacotamento, cada `config.example.js` seguro é copiado para `config.js`; `backend/`, `tests/`, `apps-script/`, `.git/` e `.github/` ficam fora do deploy.
 
 Para construir e validar o pacote localmente em um único comando:
 

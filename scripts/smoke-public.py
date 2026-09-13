@@ -62,6 +62,8 @@ def main() -> int:
         base = f"http://127.0.0.1:{server.server_port}"
         try:
             for path, content_type in (("/", "text/html"), ("/tipos/", "text/html"),
+                                       ("/privacidade/", "text/html"),
+                                       ("/metodologia/", "text/html"),
                                        ("/assets/style.css", "text/css"),
                                        ("/assets/nav.js", "application/javascript"),
                                        ("/robots.txt", "text/plain")):

@@ -163,6 +163,19 @@ footer.bottom{text-align:center; margin-top:22px; font-size:12px; color:var(--in
 
 .product-icon{width:40px; height:40px; flex-shrink:0; display:block;}
 
+/* Páginas públicas de transparência */
+.info-wrap{max-width:920px;}
+.info-page{max-width:760px; margin:0 auto;}
+.info-page .eyebrow{margin:0 0 8px; color:var(--terracotta-dark); font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;}
+.info-page h1{font-size:clamp(30px,5vw,44px); margin-bottom:16px;}
+.info-page h2{margin-top:30px; font-size:21px;}
+.info-page p{font-size:16px;}
+.info-page .lead{font-size:18px;}
+.method-card{border-left:4px solid var(--gold); background:var(--bg); border-radius:0 12px 12px 0; padding:4px 20px 10px; margin:22px 0;}
+.method-card h2{margin-top:16px;}
+.method-card p{font-size:15px;}
+.info-callout{margin-top:28px; padding:16px 18px; border:1px solid var(--border); border-radius:12px; background:#FFF3EC; color:var(--teal-dark);}
+
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important; animation-iteration-count:1 !important;
     transition-duration:.001ms !important; scroll-behavior:auto !important;}
