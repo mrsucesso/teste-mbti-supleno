@@ -506,7 +506,7 @@ function submitLead(e){
   }
   const { name, email } = fields;
   const payload = {
-    name, email, whatsapp: document.getElementById('leadWhats').value.trim(), consentimento: true, teste: 'tracos', pontuacoes: currentScores, resultado: currentScores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: document.referrer || '', scores: currentScores,
+    name, email, whatsapp: document.getElementById('leadWhats').value.trim(), consentimento: true, teste: 'tracos', pontuacoes: currentScores, resultado: currentScores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: (() => { try { return document.referrer ? new URL(document.referrer).origin : ''; } catch (_) { return ''; } })(), scores: currentScores,
     website: honeypot, token: CONFIG_TOKEN,
     date: new Date().toISOString()
   };

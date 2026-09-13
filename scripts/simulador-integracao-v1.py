@@ -6,10 +6,59 @@ não abre socket e não conhece URL de transporte.
 """
 import json
 import hashlib
+import re
 from datetime import datetime, timezone
 
 CONTRACT = "supleno.integracao.v1"
 SEQUENCE = ["imediato", "d1", "d3", "d5", "d7"]
+PRODUCTS = {"tipos", "estilos", "tracos"}
+REQUIRED = {"contract", "submission_id", "product", "person", "result", "consent", "attribution"}
+ROOT_FIELDS = REQUIRED | {"scores", "opt_out"}
+ORIGIN_PII = re.compile(r"(?:@|\b\d{8,}\b)")
+
+
+def _error(code, submission_id=""):
+    return {"contract": CONTRACT, "status": "rejected", "submission_id": submission_id,
+            "error": {"code": code, "message": "Request inválido para o contrato Supleno."}}
+
+
+def _valid_origin(origin):
+    if not isinstance(origin, str) or len(origin) > 2048 or not origin:
+        return False
+    if any(mark in origin for mark in ("?", "#", "@", "\\")) or ORIGIN_PII.search(origin):
+        return False
+    if origin == "local":
+        return True
+    if not (origin.startswith("https" + "://") or origin.startswith("http" + "://")):
+        return False
+    return "/" not in origin.split("://", 1)[1]
+
+
+def validar_request(request):
+    if not isinstance(request, dict) or not REQUIRED.issubset(request) or set(request) - ROOT_FIELDS:
+        return False
+    if request.get("contract") != CONTRACT or not isinstance(request.get("submission_id"), str) or not 1 <= len(request["submission_id"]) <= 128:
+        return False
+    if request.get("product") not in PRODUCTS or not isinstance(request.get("result"), dict) or not request["result"]:
+        return False
+    person = request.get("person")
+    if not isinstance(person, dict) or set(person) - {"name", "email", "whatsapp"} or not isinstance(person.get("name"), str) or not person["name"] or not isinstance(person.get("email"), str) or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", person["email"]):
+        return False
+    consent = request.get("consent")
+    if not isinstance(consent, dict) or set(consent) != {"granted", "captured_at", "purpose", "version"} or consent.get("granted") is not True or consent.get("purpose") != "resultado_e_sequencia_supleno" or not isinstance(consent.get("version"), str) or not consent["version"]:
+        return False
+    try:
+        datetime.fromisoformat(consent["captured_at"].replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return False
+    attribution = request.get("attribution")
+    if not isinstance(attribution, dict) or set(attribution) - {"utm_source", "utm_medium", "utm_campaign", "origin"}:
+        return False
+    if "origin" in attribution and not _valid_origin(attribution["origin"]):
+        return False
+    if "opt_out" in request and request["opt_out"] is not False:
+        return False
+    return True
 
 
 def fingerprint(request):
@@ -19,11 +68,15 @@ def fingerprint(request):
 
 
 def captura(store, request):
-    if request["consent"]["granted"] is not True:
-        return {"contract": CONTRACT, "status": "rejected", "submission_id": request["submission_id"], "error": {"code": "consent_required", "message": "Consentimento explícito é obrigatório."}}
-    submission_id = request["submission_id"]
+    submission_id = request.get("submission_id", "") if isinstance(request, dict) else ""
+    if isinstance(request, dict) and isinstance(request.get("consent"), dict) and request["consent"].get("granted") is not True:
+        return _error("consent_required", submission_id)
+    if not validar_request(request):
+        return _error("invalid_request", submission_id)
     current_fingerprint = fingerprint(request)
     if submission_id in store:
+        if store[submission_id].get("opt_out"):
+            return {"contract": CONTRACT, "status": "suppressed", "submission_id": submission_id, "sequence_state": "opt_out"}
         if store[submission_id]["fingerprint"] != current_fingerprint:
             return {"contract": CONTRACT, "status": "rejected", "submission_id": submission_id, "error": {"code": "duplicate_payload_conflict", "message": "O submission_id já foi usado com outro conteúdo."}}
         return {"contract": CONTRACT, "status": "duplicate", "submission_id": submission_id, "sequence_state": "pending"}

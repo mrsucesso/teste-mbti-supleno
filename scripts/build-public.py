@@ -15,11 +15,33 @@ PUBLIC_DIRS = ("assets", "resultados", "tipos", "estilos", "tracos", "mapa", "pr
 CONFIG_DIRS = ("tipos", "estilos", "tracos")
 
 
+def _validate_output(output: Path) -> Path:
+    """Validate the destination before it can be removed."""
+    resolved = output.expanduser().resolve(strict=False)
+    root = ROOT.resolve()
+    home = Path.home().resolve()
+    forbidden = (root, *root.parents, home)
+    if resolved in forbidden:
+        raise ValueError(f"saída insegura: {output}")
+    if output.exists() and output.is_symlink():
+        raise ValueError(f"saída symlink não permitida: {output}")
+    return resolved
+
+
 def copy_tree(source: Path, destination: Path) -> None:
+    if source.is_symlink():
+        raise ValueError(f"fonte pública symlink não permitida: {source}")
+    source = source.resolve(strict=True)
+    try:
+        source.relative_to(ROOT.resolve())
+    except ValueError as error:
+        raise ValueError(f"fonte fora da raiz pública: {source}") from error
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source)
         if path.name == "config.example.js":
             continue
+        if path.is_symlink():
+            raise ValueError(f"symlink não permitido na fonte pública: {path}")
         target = destination / relative
         if path.is_dir():
             target.mkdir(parents=True, exist_ok=True)
@@ -29,7 +51,10 @@ def copy_tree(source: Path, destination: Path) -> None:
 
 
 def build(output: Path) -> dict[str, str]:
+    output = _validate_output(output)
     if output.exists():
+        if not output.is_dir():
+            raise ValueError(f"saída não é diretório: {output}")
         shutil.rmtree(output)
     output.mkdir(parents=True)
 

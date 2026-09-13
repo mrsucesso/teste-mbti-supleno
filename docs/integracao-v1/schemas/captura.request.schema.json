@@ -35,7 +35,7 @@
         "utm_source": {"type": "string", "maxLength": 120},
         "utm_medium": {"type": "string", "maxLength": 120},
         "utm_campaign": {"type": "string", "maxLength": 160},
-        "origin": {"type": "string", "maxLength": 2048}
+        "origin": {"type": "string", "maxLength": 2048, "pattern": "^(local|https?://[^/?#@\\\\]+)$"}
       }
     },
     "opt_out": {"type": "boolean", "const": false}

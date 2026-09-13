@@ -18,7 +18,7 @@ Schemas: `schemas/captura.request.schema.json` e `schemas/captura.response.schem
 
 `consent.granted` deve ser exatamente `true`, com `captured_at`, finalidade e versão. Sem consentimento, não persiste nem entra em sequência. O opt-out é uma transição terminal `opt_out`, cancela itens pendentes, bloqueia novo cadastro até política explícita de reconsentimento e não coloca e-mail na URL. O contrato não prescreve provedor de token.
 
-UTMs (`utm_source`, `utm_medium`, `utm_campaign`) e `origin` são atribuição opcional, separados da identidade. Não são segredos. Dados de progresso local não incluem nome, e-mail ou WhatsApp.
+UTMs (`utm_source`, `utm_medium`, `utm_campaign`) e `origin` são atribuição opcional, separados da identidade. `origin` aceita somente `local` ou uma origem HTTP(S) sem caminho, query, fragmento, credencial, e-mail ou telefone. Não são segredos. Dados de progresso local não incluem nome, e-mail ou WhatsApp.
 
 ## Estados da sequência e erros
 

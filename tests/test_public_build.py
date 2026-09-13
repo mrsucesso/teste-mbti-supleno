@@ -1,4 +1,5 @@
 import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
@@ -64,6 +65,25 @@ class TestPublicBuild(unittest.TestCase):
             self.assertEqual(first_files, second_files)
             for relative in first_files:
                 self.assertEqual((first / relative).read_bytes(), (second / relative).read_bytes(), str(relative))
+
+    def test_dangerous_output_is_rejected_before_removal(self):
+        result = self.run_build(ROOT)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue((ROOT / "scripts" / "build-public.py").is_file())
+
+    def test_copy_tree_rejects_source_symlink(self):
+        spec = importlib.util.spec_from_file_location("builder", BUILDER)
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            source, destination = base / "source", base / "destination"
+            source.mkdir()
+            (base / "outside.txt").write_text("não publicar")
+            (source / "vazamento.txt").symlink_to(base / "outside.txt")
+            with self.assertRaises(ValueError):
+                builder.copy_tree(source, destination)
+            self.assertFalse((destination / "vazamento.txt").exists())
 
 
 if __name__ == "__main__":

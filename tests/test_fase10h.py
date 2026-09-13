@@ -15,14 +15,28 @@ SIMULATOR = ROOT / "scripts/simulador-integracao-v1.py"
 
 
 class TestFase10H(unittest.TestCase):
+    def valid_request(self, **overrides):
+        request = {
+            "contract": "supleno.integracao.v1",
+            "submission_id": "synthetic",
+            "product": "tipos",
+            "person": {"name": "Pessoa", "email": "pessoa@example.invalid"},
+            "result": {"code": "INTJ", "gender": "M"},
+            "consent": {"granted": True, "captured_at": "2026-09-13T15:00:00Z", "purpose": "resultado_e_sequencia_supleno", "version": "1"},
+            "attribution": {"origin": "local"},
+            "opt_out": False,
+        }
+        request.update(overrides)
+        return request
+
     def test_same_id_same_payload_is_duplicate_and_changed_payload_conflicts(self):
         spec = importlib.util.spec_from_file_location("simulador", SIMULATOR)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        request = {"submission_id": "synthetic", "consent": {"granted": True}, "result": {"code": "INTJ"}}
+        request = self.valid_request()
         store = {}
         self.assertEqual(module.captura(store, request)["status"], "accepted")
-        reordered = {"result": {"code": "INTJ"}, "consent": {"granted": True}, "submission_id": "synthetic"}
+        reordered = {**request, "result": {"code": "INTJ", "gender": "M"}, "consent": dict(request["consent"]), "submission_id": "synthetic"}
         self.assertEqual(module.captura(store, reordered)["status"], "duplicate")
         changed = {**request, "result": {"code": "ENFP"}}
         conflict = module.captura(store, changed)
@@ -51,6 +65,20 @@ if (api.salvar('tipos', {respostas: ['E'], progresso: 1, ordem: [0], resultado: 
 if (!api.salvar('tipos', {respostas: ['E'], progresso: 1, ordem: [0], resultado: {code:'INTJ', gender:'M'}})) throw new Error('registro valido rejeitado');
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+
+    def test_simulator_rejects_malformed_requests_and_suppresses_after_opt_out(self):
+        spec = importlib.util.spec_from_file_location("simulador", SIMULATOR)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.captura({}, {})["error"]["code"], "invalid_request")
+        request = self.valid_request()
+        request["attribution"]["origin"] = "https://site.example/a?email=pessoa@example.com"
+        self.assertEqual(module.captura({}, request)["error"]["code"], "invalid_request")
+        request = self.valid_request()
+        store = {}
+        self.assertEqual(module.captura(store, request)["status"], "accepted")
+        store[request["submission_id"]]["opt_out"] = True
+        self.assertEqual(module.captura(store, request)["status"], "suppressed")
 
 
 if __name__ == "__main__":

@@ -342,7 +342,7 @@ function submitLead(e){
   const code = computeType();
   const sigla = `${code}-${gender}`;
   const payload = {
-    name, email, whatsapp: whats, consentimento: true, teste: 'tipos', resultado: { code, gender }, pontuacoes: scores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: document.referrer || '', code, gender, sigla,
+    name, email, whatsapp: whats, consentimento: true, teste: 'tipos', resultado: { code, gender }, pontuacoes: scores, submission_id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), utm_source: ATTRIBUTION.get('utm_source') || '', utm_medium: ATTRIBUTION.get('utm_medium') || '', utm_campaign: ATTRIBUTION.get('utm_campaign') || '', origem: (() => { try { return document.referrer ? new URL(document.referrer).origin : ''; } catch (_) { return ''; } })(), code, gender, sigla,
     website: honeypot, token: CONFIG_TOKEN,
     date: new Date().toISOString()
   };
