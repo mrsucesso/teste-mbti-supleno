@@ -10,3 +10,6 @@ Thumbs.db
 # Artefatos de testes Python
 __pycache__/
 *.py[cod]
+
+# Cache local do Wrangler/Cloudflare Pages
+.wrangler/
