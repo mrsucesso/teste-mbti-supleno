@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "supleno.integracao.v1/captura.request",
+  "title": "Captura Supleno — request v1",
+  "version": "1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "submission_id", "product", "person", "result", "consent", "attribution"],
+  "properties": {
+    "contract": {"const": "supleno.integracao.v1"},
+    "submission_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "product": {"enum": ["tipos", "estilos", "tracos"]},
+    "person": {
+      "type": "object", "additionalProperties": false, "required": ["name", "email"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 160},
+        "email": {"type": "string", "format": "email", "maxLength": 254},
+        "whatsapp": {"type": "string", "maxLength": 32}
+      }
+    },
+    "result": {"type": "object"},
+    "scores": {"type": "object"},
+    "consent": {
+      "type": "object", "additionalProperties": false, "required": ["granted", "captured_at", "purpose"],
+      "properties": {
+        "granted": {"const": true},
+        "captured_at": {"type": "string", "format": "date-time"},
+        "purpose": {"const": "resultado_e_sequencia_supleno"},
+        "version": {"type": "string", "minLength": 1, "maxLength": 32}
+      }
+    },
+    "attribution": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "utm_source": {"type": "string", "maxLength": 120},
+        "utm_medium": {"type": "string", "maxLength": 120},
+        "utm_campaign": {"type": "string", "maxLength": 160},
+        "origin": {"type": "string", "maxLength": 2048}
+      }
+    },
+    "opt_out": {"type": "boolean", "const": false}
+  }
+}
