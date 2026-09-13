@@ -78,6 +78,10 @@ não injeta scripts nem realiza requisições nessa configuração segura.
 
 Enquanto `WEBHOOK_URL` estiver vazio, o teste funciona normalmente, o resultado aparece imediatamente e o formulário opcional não grava leads nem envia resultados.
 
+### Retomada e compartilhamento local
+
+Os três testes podem guardar apenas respostas, posição e resultado no `localStorage` do próprio navegador. O registro usa schema/versionamento, expira automaticamente em 7 dias e nunca inclui nome, e-mail ou WhatsApp. A pessoa pode apagar o progresso e recomeçar pelo botão disponível na tela de resultado. Compartilhamento usa Web Share quando disponível, Clipboard como alternativa, e oferece texto acessível e impressão amigável sem transmitir dados.
+
 ## Configuração e segurança
 
 A configuração de execução fica fora do código versionado. Copie `config.example.js` para `config.js` e preencha `WEBHOOK_URL` somente no ambiente de publicação. O arquivo `config.js` está no `.gitignore`; nunca coloque URL de webhook real, token ou credencial em `index.html`, `Code.gs` ou neste repositório.

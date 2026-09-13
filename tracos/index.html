@@ -49,7 +49,7 @@
     <div class="brand-sub">Autoconhecimento e Desenvolvimento Humano</div>
   </header>
 
-  <main id="conteudo" class="card">
+  <main id="conteudo" class="card" data-local-progress>
 
     <!-- TELA 1: INTRODUÇÃO -->
     <section id="screen-intro" class="screen active">
@@ -80,6 +80,12 @@
     <section id="screen-result" class="screen">
       <h2>Seu resultado nas cinco dimensões</h2>
       <p class="result-desc">Isto descreve tendências observadas nas suas respostas de hoje — humor, contexto e fase de vida podem influenciar o resultado. Não é um rótulo fixo nem um diagnóstico.</p>
+      <div class="result-actions" aria-label="Ações do resultado">
+        <button data-share-result type="button" class="btn secondary">Compartilhar resultado</button>
+        <button data-print-result type="button" class="btn secondary">Imprimir resultado</button>
+        <button data-reset-progress type="button" class="link-btn">Apagar progresso e recomeçar</button>
+        <p class="privacy-note" data-progress-status aria-live="polite">Seu progresso local expira em 7 dias e não inclui nome, e-mail ou WhatsApp.</p>
+      </div>
 
       <div class="result-block">
         <div id="resScores"></div>
@@ -149,6 +155,8 @@
 <script src="../assets/nav.js" defer></script>
 <script src="config.js" onerror="window.SUPLENO_CONFIG = window.SUPLENO_CONFIG || {}; console.info('config.js não encontrado — rodando em modo aberto/local (ver README > Configuração).');"></script>
 <script src="../assets/funil-analytics.js" defer></script>
+<script src="../assets/progresso-local.js"></script>
+<script src="../assets/compartilhamento.js"></script>
 <script>
 /* ================= CONFIGURAÇÃO =================
    Valores reais ficam em config.js (gitignored, ver config.example.js).
@@ -256,9 +264,10 @@ function showScreen(id){
 }
 
 function startQuiz(){
-  order = shuffle(QUESTIONS.map((q,i)=>i));
-  current = 0;
-  answers = new Array(QUESTIONS.length).fill(null);
+  const saved = SuplenoProgresso.ler('tracos');
+  order = saved && saved.ordem ? saved.ordem : shuffle(QUESTIONS.map((q,i)=>i));
+  current = saved ? saved.progresso : 0;
+  answers = saved && Array.isArray(saved.respostas) ? saved.respostas : new Array(QUESTIONS.length).fill(null);
   showScreen('screen-quiz');
   SuplenoFunil.trackInicio('tracos', {total_perguntas: QUESTIONS.length});
   renderQuestion();
@@ -316,6 +325,7 @@ function setLikertSelection(qi, value){
 
 function selectLikert(qi, value){
   answers[qi] = value;
+  SuplenoProgresso.salvar('tracos', {ordem: order, respostas: answers, progresso: current + 1});
   SuplenoFunil.trackProgresso('tracos', {pergunta: current + 1, total_perguntas: QUESTIONS.length});
   if(current < QUESTIONS.length - 1){ current++; renderQuestion(); }
   else { finishQuiz(); }
@@ -355,6 +365,7 @@ function finishQuiz(){
   document.getElementById('progressFill').style.width = '100%';
   document.querySelector('.progress-track').setAttribute('aria-valuenow', String(QUESTIONS.length));
   currentScores = computeScores(answers);
+  SuplenoProgresso.salvar('tracos', {ordem: order, respostas: answers, progresso: QUESTIONS.length, resultado: currentScores});
   SuplenoFunil.trackConclusao('tracos', {total_perguntas: QUESTIONS.length});
   renderResult(currentScores);
   showScreen('screen-result');
@@ -523,6 +534,7 @@ function submitLead(e){
 }
 
 function restartQuiz(){
+  SuplenoProgresso.apagar('tracos');
   document.getElementById('leadForm').style.display = 'flex';
   document.getElementById('leadSentMsg').style.display = 'none';
   const btn = document.getElementById('leadSubmitBtn');

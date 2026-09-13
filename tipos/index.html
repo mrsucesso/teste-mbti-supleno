@@ -48,7 +48,7 @@
     <div class="brand-sub">Autoconhecimento e Desenvolvimento Humano</div>
   </header>
 
-  <main id="conteudo" class="card">
+  <main id="conteudo" class="card" data-local-progress>
 
     <!-- TELA 1: INTRODUÇÃO + GÊNERO -->
     <section id="screen-intro" class="screen active">
@@ -86,6 +86,12 @@
         <div class="result-name" id="resName"></div>
       </div>
       <p class="result-desc" id="resDesc"></p>
+      <div class="result-actions" aria-label="Ações do resultado">
+        <button data-share-result type="button" class="btn secondary">Compartilhar resultado</button>
+        <button data-print-result type="button" class="btn secondary">Imprimir resultado</button>
+        <button data-reset-progress type="button" class="link-btn">Apagar progresso e recomeçar</button>
+        <p class="privacy-note" data-progress-status aria-live="polite">Seu progresso local expira em 7 dias e não inclui nome, e-mail ou WhatsApp.</p>
+      </div>
       <p class="privacy-note" style="text-align:center; margin-bottom:18px;">📩 Se você autorizar a captura abaixo, enviaremos o resultado completo — pontos fortes e caminhos de desenvolvimento — para o seu e-mail.</p>
       <a class="btn secondary" id="resFullLink" href="#" target="_blank" rel="noopener noreferrer">Ver Página Completa do Perfil</a>
       <button class="btn" style="margin-top:12px;" onclick="restartQuiz()">Refazer o Teste</button>
@@ -143,6 +149,8 @@
 <script src="../assets/nav.js" defer></script>
 <script src="config.js" onerror="window.SUPLENO_CONFIG = window.SUPLENO_CONFIG || {}; console.info('config.js não encontrado — rodando em modo aberto/local (ver README > Configuração).');"></script>
 <script src="../assets/funil-analytics.js" defer></script>
+<script src="../assets/progresso-local.js"></script>
+<script src="../assets/compartilhamento.js"></script>
 <script>
 /* ================= CONFIGURAÇÃO =================
    Valores reais ficam em config.js (gitignored, ver config.example.js).
@@ -192,9 +200,10 @@ function showScreen(id){
 }
 
 function startQuiz(){
-  order = shuffle(QUESTIONS.map((q,i)=>i));
-  current = 0;
-  answers = new Array(QUESTIONS.length).fill(null);
+  const saved = SuplenoProgresso.ler('tipos');
+  order = saved && saved.ordem ? saved.ordem : shuffle(QUESTIONS.map((q,i)=>i));
+  current = saved ? saved.progresso : 0;
+  answers = saved && Array.isArray(saved.respostas) ? saved.respostas : new Array(QUESTIONS.length).fill(null);
   showScreen('screen-quiz');
   SuplenoFunil.trackInicio('tipos', {total_perguntas: QUESTIONS.length});
   renderQuestion();
@@ -223,6 +232,7 @@ function renderQuestion(){
 
 function selectOption(qi, pole){
   answers[qi] = pole;
+  SuplenoProgresso.salvar('tipos', {ordem: order, respostas: answers, progresso: current + 1});
   SuplenoFunil.trackProgresso('tipos', {pergunta: current + 1, total_perguntas: QUESTIONS.length});
   if(current < QUESTIONS.length - 1){ current++; renderQuestion(); }
   else { finishQuiz(); }
@@ -378,10 +388,12 @@ function showResult(code, g){
   document.getElementById('resDesc').textContent = desc;
   document.getElementById('resFullLink').href = `resultados/${code.toLowerCase()}-${gk}.html`;
   showScreen('screen-result');
+  SuplenoProgresso.salvar('tipos', {ordem: order, respostas: answers, progresso: QUESTIONS.length, resultado: {code: code, gender: g}});
   SuplenoFunil.trackResultado('tipos', {resultado: code, genero: g});
 }
 
 function restartQuiz(){
+  SuplenoProgresso.apagar('tipos');
   const btn = document.getElementById('leadSubmitBtn');
   btn.disabled = false; btn.textContent = 'Ver Meu Resultado';
   document.getElementById('leadForm').reset();

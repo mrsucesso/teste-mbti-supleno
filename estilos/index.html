@@ -48,7 +48,7 @@
     <div class="brand-sub">Autoconhecimento e Desenvolvimento Humano</div>
   </header>
 
-  <main id="conteudo" class="card">
+  <main id="conteudo" class="card" data-local-progress>
 
     <!-- TELA 1: INTRODUÇÃO -->
     <section id="screen-intro" class="screen active">
@@ -81,6 +81,12 @@
         <div class="result-name" id="resName"></div>
       </div>
       <p class="result-desc" id="resDesc"></p>
+      <div class="result-actions" aria-label="Ações do resultado">
+        <button data-share-result type="button" class="btn secondary">Compartilhar resultado</button>
+        <button data-print-result type="button" class="btn secondary">Imprimir resultado</button>
+        <button data-reset-progress type="button" class="link-btn">Apagar progresso e recomeçar</button>
+        <p class="privacy-note" data-progress-status aria-live="polite">Seu progresso local expira em 7 dias e não inclui nome, e-mail ou WhatsApp.</p>
+      </div>
 
       <div class="result-block">
         <h3>Pontos fortes</h3>
@@ -150,6 +156,8 @@
 <script src="../assets/nav.js" defer></script>
 <script src="config.js" onerror="window.SUPLENO_CONFIG = window.SUPLENO_CONFIG || {}; console.info('config.js não encontrado — rodando em modo aberto/local (ver README > Configuração).');"></script>
 <script src="../assets/funil-analytics.js" defer></script>
+<script src="../assets/progresso-local.js"></script>
+<script src="../assets/compartilhamento.js"></script>
 <script>
 /* ================= CONFIGURAÇÃO =================
    Valores reais ficam em config.js (gitignored, ver config.example.js).
@@ -252,9 +260,10 @@ function showScreen(id){
 }
 
 function startQuiz(){
-  order = shuffle(QUESTIONS.map((q,i)=>i));
-  current = 0;
-  answers = new Array(QUESTIONS.length).fill(null);
+  const saved = SuplenoProgresso.ler('estilos');
+  order = saved && saved.ordem ? saved.ordem : shuffle(QUESTIONS.map((q,i)=>i));
+  current = saved ? saved.progresso : 0;
+  answers = saved && Array.isArray(saved.respostas) ? saved.respostas : new Array(QUESTIONS.length).fill(null);
   showScreen('screen-quiz');
   SuplenoFunil.trackInicio('estilos', {total_perguntas: QUESTIONS.length});
   renderQuestion();
@@ -283,6 +292,7 @@ function renderQuestion(){
 
 function selectOption(qi, pole){
   answers[qi] = pole;
+  SuplenoProgresso.salvar('estilos', {ordem: order, respostas: answers, progresso: current + 1});
   SuplenoFunil.trackProgresso('estilos', {pergunta: current + 1, total_perguntas: QUESTIONS.length});
   if(current < QUESTIONS.length - 1){ current++; renderQuestion(); }
   else { finishQuiz(); }
@@ -298,6 +308,7 @@ function finishQuiz(){
   document.getElementById('progressFill').style.width = '100%';
   document.querySelector('.progress-track').setAttribute('aria-valuenow', String(QUESTIONS.length));
   currentStyle = computeStyle();
+  SuplenoProgresso.salvar('estilos', {ordem: order, respostas: answers, progresso: QUESTIONS.length, resultado: currentStyle});
   SuplenoFunil.trackConclusao('estilos', {total_perguntas: QUESTIONS.length});
   renderResult(currentStyle);
   showScreen('screen-result');
@@ -474,6 +485,7 @@ function submitLead(e){
 }
 
 function restartQuiz(){
+  SuplenoProgresso.apagar('estilos');
   document.getElementById('leadForm').style.display = 'flex';
   document.getElementById('leadSentMsg').style.display = 'none';
   const btn = document.getElementById('leadSubmitBtn');
