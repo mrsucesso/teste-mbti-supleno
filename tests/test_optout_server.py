@@ -1,45 +1,57 @@
-import pytest
+import tempfile
+import unittest
 from io import BytesIO
-from backend.optout_server import OptOutApplication
-from backend.funil_store import FunilStore
 from pathlib import Path
 
-@pytest.fixture
-def store(tmp_path):
-    path = tmp_path / "leads.jsonl"
-    return FunilStore(path, optout_secret="secret")
+from backend.funil_store import FunilStore
+from backend.optout_server import OptOutApplication
 
-@pytest.fixture
-def app(store):
-    return OptOutApplication(store)
 
-def test_get_optout_renders_form(app, store):
-    token = store.gerar_optout_token("test@example.com")
-    environ = {
-        "PATH_INFO": "/optout",
-        "QUERY_STRING": f"token={token}",
-        "REQUEST_METHOD": "GET"
-    }
-    start_response = lambda status, headers: None
-    response = app(environ, start_response)
-    
-    assert b"Confirmar cancelamento" in response[0]
-    assert b"method=\"POST\"" in response[0]
+class TestOptOutServer(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.store = FunilStore(
+            Path(self._tmp.name) / "leads.jsonl",
+            optout_secret="secret",
+        )
+        self.app = OptOutApplication(self.store)
 
-def test_post_optout_registers(app, store):
-    email = "test@example.com"
-    token = store.gerar_optout_token(email)
-    
-    # Simula o POST com o token no corpo e no QUERY_STRING (action do form)
-    body = f"token={token}".encode("utf-8")
-    environ = {
-        "PATH_INFO": "/optout",
-        "QUERY_STRING": f"token={token}",
-        "REQUEST_METHOD": "POST",
-        "CONTENT_LENGTH": str(len(body)),
-        "wsgi.input": BytesIO(body)
-    }
-    start_response = lambda status, headers: None
-    response = app(environ, start_response)
-    
-    assert store.esta_opt_out(email)
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    @staticmethod
+    def _start_response(status, headers):
+        return None
+
+    def test_get_optout_renders_form_without_changing_state(self):
+        email = "test@example.com"
+        token = self.store.gerar_optout_token(email)
+        environ = {
+            "PATH_INFO": "/optout",
+            "QUERY_STRING": f"token={token}",
+            "REQUEST_METHOD": "GET",
+        }
+        response = self.app(environ, self._start_response)
+
+        self.assertIn(b"Confirmar cancelamento", response[0])
+        self.assertIn(b'method="POST"', response[0])
+        self.assertFalse(self.store.esta_opt_out(email))
+
+    def test_post_optout_registers(self):
+        email = "test@example.com"
+        token = self.store.gerar_optout_token(email)
+        body = f"token={token}".encode("utf-8")
+        environ = {
+            "PATH_INFO": "/optout",
+            "QUERY_STRING": f"token={token}",
+            "REQUEST_METHOD": "POST",
+            "CONTENT_LENGTH": str(len(body)),
+            "wsgi.input": BytesIO(body),
+        }
+        self.app(environ, self._start_response)
+
+        self.assertTrue(self.store.esta_opt_out(email))
+
+
+if __name__ == "__main__":
+    unittest.main()
