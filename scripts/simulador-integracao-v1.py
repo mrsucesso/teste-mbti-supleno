@@ -34,26 +34,45 @@ def _valid_origin(origin):
     return "/" not in origin.split("://", 1)[1]
 
 
+def _valid_text(value, maximum):
+    return isinstance(value, str) and len(value) <= maximum
+
+
+def _valid_email(value):
+    return _valid_text(value, 254) and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value)
+
+
 def validar_request(request):
     if not isinstance(request, dict) or not REQUIRED.issubset(request) or set(request) - ROOT_FIELDS:
         return False
     if request.get("contract") != CONTRACT or not isinstance(request.get("submission_id"), str) or not 1 <= len(request["submission_id"]) <= 128:
         return False
-    if request.get("product") not in PRODUCTS or not isinstance(request.get("result"), dict) or not request["result"]:
+    if request.get("product") not in PRODUCTS or not isinstance(request.get("result"), dict):
+        return False
+    if "scores" in request and not isinstance(request["scores"], dict):
         return False
     person = request.get("person")
-    if not isinstance(person, dict) or set(person) - {"name", "email", "whatsapp"} or not isinstance(person.get("name"), str) or not person["name"] or not isinstance(person.get("email"), str) or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", person["email"]):
+    if (not isinstance(person, dict) or set(person) - {"name", "email", "whatsapp"}
+            or not _valid_text(person.get("name"), 160) or not person["name"]
+            or not _valid_email(person.get("email"))):
+        return False
+    if "whatsapp" in person and not _valid_text(person["whatsapp"], 32):
         return False
     consent = request.get("consent")
     if not isinstance(consent, dict) or set(consent) != {"granted", "captured_at", "purpose", "version"} or consent.get("granted") is not True or consent.get("purpose") != "resultado_e_sequencia_supleno" or not isinstance(consent.get("version"), str) or not consent["version"]:
         return False
     try:
-        datetime.fromisoformat(consent["captured_at"].replace("Z", "+00:00"))
+        captured_at = datetime.fromisoformat(consent["captured_at"].replace("Z", "+00:00"))
+        if captured_at.tzinfo is None or captured_at.utcoffset() is None:
+            return False
     except (ValueError, TypeError):
         return False
     attribution = request.get("attribution")
     if not isinstance(attribution, dict) or set(attribution) - {"utm_source", "utm_medium", "utm_campaign", "origin"}:
         return False
+    for field, maximum in (("utm_source", 120), ("utm_medium", 120), ("utm_campaign", 160)):
+        if field in attribution and not _valid_text(attribution[field], maximum):
+            return False
     if "origin" in attribution and not _valid_origin(attribution["origin"]):
         return False
     if "opt_out" in request and request["opt_out"] is not False:

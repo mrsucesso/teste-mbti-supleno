@@ -66,6 +66,19 @@ class TestPublicBuild(unittest.TestCase):
             for relative in first_files:
                 self.assertEqual((first / relative).read_bytes(), (second / relative).read_bytes(), str(relative))
 
+    def test_same_dedicated_directory_can_be_rebuilt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "dedicated"
+            first = self.run_build(output)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            first_files = {p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()}
+            (output / "stale-from-previous-build.txt").write_text("remover")
+            second = self.run_build(output)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertFalse((output / "stale-from-previous-build.txt").exists())
+            second_files = {p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()}
+            self.assertEqual(first_files, second_files)
+
     def test_dangerous_output_is_rejected_before_removal(self):
         result = self.run_build(ROOT)
         self.assertNotEqual(result.returncode, 0)
@@ -80,6 +93,14 @@ class TestPublicBuild(unittest.TestCase):
             result = self.run_build(output)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(sentinel.read_text(), "preservar")
+
+    def test_broken_output_symlink_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "broken-link"
+            output.symlink_to(Path(tmp) / "missing-target")
+            result = self.run_build(output)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(output.is_symlink())
 
     def test_copy_tree_rejects_source_symlink(self):
         spec = importlib.util.spec_from_file_location("builder", BUILDER)

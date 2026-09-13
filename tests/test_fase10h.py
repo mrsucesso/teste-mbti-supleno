@@ -80,6 +80,29 @@ if (!api.salvar('tipos', {respostas: ['E'], progresso: 1, ordem: [0], resultado:
         store[request["submission_id"]]["opt_out"] = True
         self.assertEqual(module.captura(store, request)["status"], "suppressed")
 
+    def test_simulator_enforces_request_schema_field_types_and_limits(self):
+        spec = importlib.util.spec_from_file_location("simulador", SIMULATOR)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        cases = [
+            {"person": {"name": "Pessoa", "email": "pessoa@example.invalid", "whatsapp": 27}},
+            {"person": {"name": "x" * 161, "email": "pessoa@example.invalid"}},
+            {"person": {"name": "Pessoa", "email": "x" * 250 + "@x.com"}},
+            {"attribution": {"utm_source": "x" * 121}},
+            {"attribution": {"utm_medium": "x" * 121}},
+            {"attribution": {"utm_campaign": "x" * 161}},
+            {"attribution": {"utm_source": None}},
+        ]
+        for overrides in cases:
+            request = self.valid_request()
+            for section, values in overrides.items():
+                request[section] = values
+            self.assertFalse(module.validar_request(request), overrides)
+
+        empty_result = self.valid_request()
+        empty_result["result"] = {}
+        self.assertTrue(module.validar_request(empty_result))
+
     def test_frontends_use_explicit_v1_adapter_at_capture_boundary(self):
         adapter = (ROOT / "assets/integracao-v1-adapter.js").read_text(encoding="utf-8")
         self.assertIn("supleno.integracao.v1", adapter)

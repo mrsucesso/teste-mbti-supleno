@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+BUILD_OWNER = "testes-supleno-public-builder-v1"
 ROOT_FILES = ("index.html", "404.html", "robots.txt", "sitemap.xml")
 PUBLIC_DIRS = ("assets", "resultados", "tipos", "estilos", "tracos", "mapa", "privacidade", "metodologia")
 CONFIG_DIRS = ("tipos", "estilos", "tracos")
@@ -17,18 +18,31 @@ CONFIG_DIRS = ("tipos", "estilos", "tracos")
 
 def _validate_output(output: Path) -> Path:
     """Validate the destination before it can be removed."""
+    if output.is_symlink():
+        raise ValueError(f"saída symlink não permitida: {output}")
     resolved = output.expanduser().resolve(strict=False)
     root = ROOT.resolve()
     home = Path.home().resolve()
     forbidden = (root, *root.parents, home)
     if resolved in forbidden:
         raise ValueError(f"saída insegura: {output}")
-    if resolved.is_relative_to(root) and resolved != root / "public":
+    try:
+        resolved.relative_to(root)
+        inside_root = True
+    except ValueError:
+        inside_root = False
+    if inside_root and resolved != root / "public":
         raise ValueError(f"saída deve ser o diretório público dedicado: {output}")
-    if resolved.exists() and resolved != root / "public" and any(resolved.iterdir()):
-        raise ValueError(f"saída externa existente não é um diretório de build dedicado: {output}")
-    if output.exists() and output.is_symlink():
-        raise ValueError(f"saída symlink não permitida: {output}")
+    if resolved.exists() and resolved != root / "public":
+        if not resolved.is_dir():
+            raise ValueError(f"saída não é diretório: {output}")
+        manifest_path = resolved / "manifest.json"
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            manifest = None
+        if not isinstance(manifest, dict) or manifest.get("builder") != BUILD_OWNER:
+            raise ValueError(f"saída externa existente não é um diretório de build dedicado: {output}")
     return resolved
 
 
@@ -80,7 +94,7 @@ def build(output: Path) -> dict[str, str]:
             relative = path.relative_to(output).as_posix()
             files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
 
-    manifest = {"format": 1, "files": files}
+    manifest = {"builder": BUILD_OWNER, "format": 1, "files": files}
     (output / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
