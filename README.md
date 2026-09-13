@@ -37,6 +37,14 @@ A produção é servida pelo projeto Cloudflare Pages `testes-supleno`, no domí
 
 Não publique a raiz inteira do repositório. O pacote público contém somente `index.html`, `404.html`, `robots.txt`, `sitemap.xml`, `assets/`, `resultados/`, `tipos/`, `estilos/` e `tracos/`. Durante o empacotamento, cada `config.example.js` seguro é copiado para `config.js`; `backend/`, `tests/`, `apps-script/`, `.git/` e `.github/` ficam fora do deploy.
 
+Para construir e validar o pacote localmente em um único comando:
+
+```bash
+python3 scripts/build-public.py --output public && python3 scripts/smoke-public.py
+```
+
+O builder remove o diretório de saída antes de copiar a allowlist e grava `manifest.json` com SHA-256 dos arquivos incluídos. O smoke test serve o pacote em `127.0.0.1`, confirma Content-Type das rotas principais e verifica a página 404 sem acessar serviço externo.
+
 ## Configuração necessária antes da produção
 
 1. Implantar uma cópia de `apps-script/Code.gs` como backend compartilhado. O mesmo endpoint valida os contratos distintos de Tipos, Estilos e Traços.

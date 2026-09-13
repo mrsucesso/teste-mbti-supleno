@@ -29,6 +29,11 @@ jobs:
         run: cp apps-script/Code.gs /tmp/testes-supleno-codegs.js && node --check /tmp/testes-supleno-codegs.js
       - name: Validar conteúdo editorial
         run: python3 scripts/validate-content.py
+      - name: Construir e testar pacote público
+        run: |
+          python3 scripts/build-public.py --output /tmp/testes-supleno-public
+          python3 scripts/smoke-public.py
+          python3 -m unittest tests.test_public_build -v
       - name: Verificar whitespace do diff
         shell: bash
         run: |
