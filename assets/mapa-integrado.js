@@ -1,4 +1,5 @@
-/* Mapa Integrado Supleno: combinação local, transparente e não determinista; não é diagnóstico. */
+/* Mapa Integrado Supleno: combinação local, transparente e determinística,
+ * sem nova pontuação; não é diagnóstico. */
 (function (global) {
   'use strict';
 

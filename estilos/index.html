@@ -316,7 +316,7 @@ function selectOption(qi, pole){
   else { finishQuiz(); }
 }
 
-function goBack(){ if(current>0){ current--; renderQuestion(); } }
+function goBack(){ if(current>0){ current--; SuplenoProgresso.salvar('estilos', {ordem: order, respostas: answers, progresso: current}); renderQuestion(); } }
 
 /* O resultado aparece imediatamente ao final do quiz — a captura de
    e-mail (abaixo, no mesmo ecrã) é opcional e nunca bloqueia esta etapa. */
@@ -504,6 +504,7 @@ function submitLead(e){
 
 function restartQuiz(){
   SuplenoProgresso.apagar('estilos');
+  order = []; current = 0; answers = []; scores = {};
   document.getElementById('leadForm').style.display = 'flex';
   document.getElementById('leadSentMsg').style.display = 'none';
   const btn = document.getElementById('leadSubmitBtn');
@@ -512,6 +513,8 @@ function restartQuiz(){
   clearLeadErrors();
   showScreen('screen-intro');
 }
+
+if (window.addEventListener) window.addEventListener('supleno:progresso-apagado', restartQuiz);
 
 document.getElementById('year').textContent = new Date().getFullYear();
 if (typeof SuplenoProgresso !== 'undefined') {

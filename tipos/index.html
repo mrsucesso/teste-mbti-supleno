@@ -253,7 +253,7 @@ function selectOption(qi, pole){
   else { finishQuiz(); }
 }
 
-function goBack(){ if(current>0){ current--; renderQuestion(); } }
+function goBack(){ if(current>0){ current--; SuplenoProgresso.salvar('tipos', {ordem: order, respostas: answers, progresso: current}); renderQuestion(); } }
 
 function finishQuiz(){
   scores = {E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0};
@@ -409,12 +409,15 @@ function showResult(code, g){
 
 function restartQuiz(){
   SuplenoProgresso.apagar('tipos');
+  order = []; current = 0; answers = []; scores = {E:0,I:0,S:0,N:0,T:0,F:0,J:0,P:0};
   const btn = document.getElementById('leadSubmitBtn');
   btn.disabled = false; btn.textContent = 'Ver Meu Resultado';
   document.getElementById('leadForm').reset();
   clearLeadErrors();
   showScreen('screen-intro');
 }
+
+if (window.addEventListener) window.addEventListener('supleno:progresso-apagado', restartQuiz);
 
 document.getElementById('year').textContent = new Date().getFullYear();
 if (typeof SuplenoProgresso !== 'undefined') {

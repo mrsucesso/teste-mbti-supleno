@@ -9,6 +9,10 @@
   var KEY_PREFIX = 'supleno:progresso:';
   var MAX_RESPONSES = 100;
   var PRODUCTS = { tipos: true, estilos: true, tracos: true };
+  var VALID_TIPOS = { E: true, I: true, S: true, N: true, T: true, F: true, J: true, P: true };
+  var VALID_TIPO_RESULTS = { ISTJ: true, ISFJ: true, INFJ: true, INTJ: true, ISTP: true, ISFP: true, INFP: true, INTP: true, ESTP: true, ESFP: true, ENFP: true, ENTP: true, ESTJ: true, ESFJ: true, ENFJ: true, ENTJ: true };
+  var VALID_ESTILOS = { D: true, I: true, S: true, C: true };
+  var VALID_TRACOS = { 1: true, 2: true, 3: true, 4: true, 5: true };
   var memory = {};
 
   function storage() {
@@ -28,7 +32,25 @@
         indices[value.ordem[i]] = true;
       }
     }
+    if (!value.respostas.every(function (answer) {
+      if (answer === null) return true;
+      if (produto === 'tracos') return VALID_TRACOS[answer] === true;
+      return (produto === 'tipos' ? VALID_TIPOS : VALID_ESTILOS)[answer] === true;
+    })) return false;
+    if (value.resultado !== null && !validResult(value.resultado, produto)) return false;
     return true;
+  }
+  function validResult(result, produto) {
+    if (produto === 'tipos') return !!result && Object.keys(result).length === 2 && VALID_TIPO_RESULTS[result.code] === true && (result.gender === 'M' || result.gender === 'F');
+    if (produto === 'estilos') return typeof result === 'string' && VALID_ESTILOS[result] === true;
+    var dimensions = { SO: true, AN: true, OM: true, TE: true, CO: true };
+    if (!result || typeof result !== 'object') return false;
+    return Object.keys(result).length === 5 && Object.keys(result).every(function (dim) {
+      var item = result[dim];
+      return dimensions[dim] === true && item && Object.keys(item).length === 3 && Number.isInteger(item.sum) && item.sum >= 5 && item.sum <= 25 &&
+        Number.isInteger(item.percent) && item.percent >= 0 && item.percent <= 100 &&
+        (item.faixa === 'baixo' || item.faixa === 'medio' || item.faixa === 'alto');
+    });
   }
   function read(produto) {
     var raw = null;

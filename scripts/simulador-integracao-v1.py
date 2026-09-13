@@ -5,18 +5,29 @@ Somente dados sintéticos e memória do processo. Não importa cliente HTTP,
 não abre socket e não conhece URL de transporte.
 """
 import json
+import hashlib
 from datetime import datetime, timezone
 
 CONTRACT = "supleno.integracao.v1"
 SEQUENCE = ["imediato", "d1", "d3", "d5", "d7"]
 
 
+def fingerprint(request):
+    """Fingerprint estável do conteúdo, sem depender da ordem das chaves."""
+    canonical = json.dumps(request, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def captura(store, request):
     if request["consent"]["granted"] is not True:
         return {"contract": CONTRACT, "status": "rejected", "submission_id": request["submission_id"], "error": {"code": "consent_required", "message": "Consentimento explícito é obrigatório."}}
-    if request["submission_id"] in store:
-        return {"contract": CONTRACT, "status": "duplicate", "submission_id": request["submission_id"], "sequence_state": "pending"}
-    store[request["submission_id"]] = {"request": request, "sequence_state": "pending", "opt_out": False}
+    submission_id = request["submission_id"]
+    current_fingerprint = fingerprint(request)
+    if submission_id in store:
+        if store[submission_id]["fingerprint"] != current_fingerprint:
+            return {"contract": CONTRACT, "status": "rejected", "submission_id": submission_id, "error": {"code": "duplicate_payload_conflict", "message": "O submission_id já foi usado com outro conteúdo."}}
+        return {"contract": CONTRACT, "status": "duplicate", "submission_id": submission_id, "sequence_state": "pending"}
+    store[submission_id] = {"request": request, "fingerprint": current_fingerprint, "sequence_state": "pending", "opt_out": False}
     return {"contract": CONTRACT, "status": "accepted", "submission_id": request["submission_id"], "sequence_state": "pending"}
 
 
