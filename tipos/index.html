@@ -199,10 +199,20 @@ function showScreen(id){
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
+function restoreSavedResult(saved){
+  if(!saved || saved.progresso !== QUESTIONS.length || !saved.resultado) return false;
+  const result = saved.resultado;
+  if(!result || !PROFILES[result.code] || (result.gender !== 'M' && result.gender !== 'F')) return false;
+  gender = result.gender;
+  showResult(result.code, result.gender);
+  return true;
+}
+
 function startQuiz(){
   const saved = SuplenoProgresso.ler('tipos');
+  if (restoreSavedResult(saved)) return;
   order = saved && saved.ordem ? saved.ordem : shuffle(QUESTIONS.map((q,i)=>i));
-  current = saved ? saved.progresso : 0;
+  current = saved && Number.isInteger(saved.progresso) && saved.progresso < QUESTIONS.length ? saved.progresso : 0;
   answers = saved && Array.isArray(saved.respostas) ? saved.respostas : new Array(QUESTIONS.length).fill(null);
   showScreen('screen-quiz');
   SuplenoFunil.trackInicio('tipos', {total_perguntas: QUESTIONS.length});
@@ -210,8 +220,13 @@ function startQuiz(){
 }
 
 function renderQuestion(){
+  if (!Number.isInteger(current) || current < 0 || current >= QUESTIONS.length || !Array.isArray(order) || order.length !== QUESTIONS.length) {
+    SuplenoProgresso.apagar('tipos');
+    order = shuffle(QUESTIONS.map((q,i)=>i)); current = 0; answers = new Array(QUESTIONS.length).fill(null);
+  }
   const qi = order[current];
   const q = QUESTIONS[qi];
+  if (!q) { SuplenoProgresso.apagar('tipos'); showScreen('screen-intro'); return; }
   const qText = document.getElementById('qText');
   qText.textContent = `Pergunta ${current+1}. Com qual afirmação você mais se identifica?`;
   const optsWrap = document.getElementById('qOptions');
@@ -402,6 +417,10 @@ function restartQuiz(){
 }
 
 document.getElementById('year').textContent = new Date().getFullYear();
+if (typeof SuplenoProgresso !== 'undefined') {
+  const savedTipos = SuplenoProgresso.ler('tipos');
+  (function(saved){ if (restoreSavedResult(saved)) return; })(savedTipos);
+}
 </script>
 </body>
 </html>

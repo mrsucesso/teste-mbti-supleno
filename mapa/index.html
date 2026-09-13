@@ -42,7 +42,22 @@
 <script>
 (function(){'use strict';
 var labels={tipos:'Supleno Tipos',estilos:'Supleno Estilos',tracos:'Supleno Traços'};
-function render(){var mapa=SuplenoMapa.combinar(), node=document.getElementById('mapaStatus'); if(!mapa.completo){node.innerHTML='<h2>Seu mapa ainda está sendo construído</h2><p>Para liberar a visão integrada, conclua os testes que faltam:</p><ul>'+mapa.faltam.map(function(p){return '<li><a href="../'+p+'/">'+labels[p]+'</a></li>';}).join('')+'</ul><p class="mapa-note">Você pode voltar depois. O progresso fica somente no seu navegador por até 7 dias.</p>';return;} node.innerHTML='<h2>Seu mapa está pronto</h2><div class="mapa-grid"><div class="mapa-item"><small>Tipos</small><strong>'+mapa.tipo+'</strong><span>Uma lente sobre preferências de personalidade.</span></div><div class="mapa-item"><small>Estilos</small><strong>'+mapa.estilo+'</strong><span>Uma lente sobre seu modo de agir.</span></div><div class="mapa-item"><small>Traços</small><strong>5 dimensões</strong><span>Faixas observadas nas respostas de hoje.</span></div></div><p>Esses três resultados conversam entre si sem se somar. Observe convergências e diferenças como perguntas para reflexão, não como sentença.</p>'}
+var ALLOWED=['tipos','estilos','tracos'];
+function el(tag, text, className){var node=document.createElement(tag); if(text) node.textContent=text; if(className) node.className=className; return node;}
+function render(){
+  var mapa=SuplenoMapa.combinar(), node=document.getElementById('mapaStatus');
+  node.replaceChildren();
+  if(!mapa.completo){
+    node.appendChild(el('h2','Seu mapa ainda está sendo construído'));
+    node.appendChild(el('p','Para liberar a visão integrada, conclua os testes que faltam:'));
+    var list=el('ul'); mapa.faltam.filter(function(p){return ALLOWED.indexOf(p)!==-1;}).forEach(function(p){var item=el('li'), link=el('a',labels[p]); link.href='../'+p+'/'; item.appendChild(link); list.appendChild(item);}); node.appendChild(list);
+    node.appendChild(el('p','Você pode voltar depois. O progresso fica somente no seu navegador por até 7 dias.','mapa-note')); return;
+  }
+  node.appendChild(el('h2','Seu mapa está pronto'));
+  var grid=el('div',null,'mapa-grid');
+  [['Tipos',mapa.tipo,'Uma lente sobre preferências de personalidade.'],['Estilos',mapa.estilo,'Uma lente sobre seu modo de agir.'],['Traços','5 dimensões','Faixas observadas nas respostas de hoje.']].forEach(function(item){var card=el('div',null,'mapa-item'); card.appendChild(el('small',item[0])); card.appendChild(el('strong',item[1])); card.appendChild(el('span',item[2])); grid.appendChild(card);});
+  node.appendChild(grid); node.appendChild(el('p','Esses três resultados conversam entre si sem se somar. Observe convergências e diferenças como perguntas para reflexão, não como sentença.'));
+}
 function feedback(msg){document.getElementById('mapaFeedback').textContent=msg}
 document.querySelector('[data-action="apagar"]').addEventListener('click',function(){SuplenoMapa.produtos.forEach(SuplenoProgresso.apagar); render(); feedback('Dados locais dos três testes apagados.');});
 document.querySelector('[data-action="imprimir"]').addEventListener('click',function(){window.print()});

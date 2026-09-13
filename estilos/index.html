@@ -259,10 +259,23 @@ function showScreen(id){
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
+function restoreSavedResult(saved){
+  if(!saved || saved.progresso !== QUESTIONS.length || typeof saved.resultado !== 'string' || !RESULTS[saved.resultado]) return false;
+  if(!Array.isArray(saved.respostas) || saved.respostas.length !== QUESTIONS.length || saved.respostas.some(p => !['D','I','S','C'].includes(p))) return false;
+  scores = {D:0,I:0,S:0,C:0};
+  saved.respostas.forEach(p => scores[p]++);
+  answers = saved.respostas.slice();
+  currentStyle = saved.resultado;
+  renderResult(currentStyle);
+  showScreen('screen-result');
+  return true;
+}
+
 function startQuiz(){
   const saved = SuplenoProgresso.ler('estilos');
+  if (restoreSavedResult(saved)) return;
   order = saved && saved.ordem ? saved.ordem : shuffle(QUESTIONS.map((q,i)=>i));
-  current = saved ? saved.progresso : 0;
+  current = saved && Number.isInteger(saved.progresso) && saved.progresso < QUESTIONS.length ? saved.progresso : 0;
   answers = saved && Array.isArray(saved.respostas) ? saved.respostas : new Array(QUESTIONS.length).fill(null);
   showScreen('screen-quiz');
   SuplenoFunil.trackInicio('estilos', {total_perguntas: QUESTIONS.length});
@@ -270,8 +283,13 @@ function startQuiz(){
 }
 
 function renderQuestion(){
+  if (!Number.isInteger(current) || current < 0 || current >= QUESTIONS.length || !Array.isArray(order) || order.length !== QUESTIONS.length) {
+    SuplenoProgresso.apagar('estilos');
+    order = shuffle(QUESTIONS.map((q,i)=>i)); current = 0; answers = new Array(QUESTIONS.length).fill(null);
+  }
   const qi = order[current];
   const q = QUESTIONS[qi];
+  if (!q) { SuplenoProgresso.apagar('estilos'); showScreen('screen-intro'); return; }
   const qText = document.getElementById('qText');
   qText.textContent = `Pergunta ${current+1}. Com qual afirmação você mais se identifica?`;
   const optsWrap = document.getElementById('qOptions');
@@ -496,6 +514,10 @@ function restartQuiz(){
 }
 
 document.getElementById('year').textContent = new Date().getFullYear();
+if (typeof SuplenoProgresso !== 'undefined') {
+  const savedEstilos = SuplenoProgresso.ler('estilos');
+  (function(saved){ if (restoreSavedResult(saved)) return; })(savedEstilos);
+}
 </script>
 </body>
 </html>

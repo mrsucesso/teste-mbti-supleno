@@ -7,12 +7,29 @@
   var SCHEMA = 1;
   var TTL_MS = 7 * 24 * 60 * 60 * 1000;
   var KEY_PREFIX = 'supleno:progresso:';
+  var MAX_RESPONSES = 100;
+  var PRODUCTS = { tipos: true, estilos: true, tracos: true };
   var memory = {};
 
   function storage() {
     try { return global.localStorage; } catch (e) { return null; }
   }
   function key(produto) { return KEY_PREFIX + produto; }
+  function isValidRecord(value, produto) {
+    if (!value || value.schema !== SCHEMA || value.produto !== produto || !PRODUCTS[produto]) return false;
+    if (!Number.isFinite(value.expiresAt) || value.expiresAt <= Date.now()) return false;
+    if (!Array.isArray(value.respostas) || value.respostas.length > MAX_RESPONSES) return false;
+    if (!Number.isInteger(value.progresso) || value.progresso < 0 || value.progresso > value.respostas.length) return false;
+    if (value.ordem !== null) {
+      if (!Array.isArray(value.ordem) || value.ordem.length !== value.respostas.length || value.ordem.length > MAX_RESPONSES) return false;
+      var indices = {};
+      for (var i = 0; i < value.ordem.length; i++) {
+        if (!Number.isInteger(value.ordem[i]) || value.ordem[i] < 0 || value.ordem[i] >= value.respostas.length || indices[value.ordem[i]]) return false;
+        indices[value.ordem[i]] = true;
+      }
+    }
+    return true;
+  }
   function read(produto) {
     var raw = null;
     try { raw = storage() && storage().getItem(key(produto)); } catch (e) { raw = null; }
@@ -20,8 +37,8 @@
     if (!raw) return null;
     try {
       var value = JSON.parse(raw);
-      if (!value || value.expiresAt <= Date.now()) { remove(produto); return null; }
       if (value.schema !== SCHEMA) return migrate(value, produto);
+      if (!isValidRecord(value, produto)) { remove(produto); return null; }
       return value;
     } catch (e) { remove(produto); return null; }
   }
@@ -30,8 +47,7 @@
       var migrated = { schema: SCHEMA, produto: produto, respostas: value.respostas,
         progresso: value.progresso || 0, resultado: value.resultado || null, ordem: Array.isArray(value.ordem) ? value.ordem.slice() : null,
         expiresAt: Date.now() + TTL_MS };
-      save(produto, migrated);
-      return migrated;
+      if (isValidRecord(migrated, produto)) { save(produto, migrated); return migrated; }
     }
     remove(produto); return null;
   }
@@ -41,6 +57,7 @@
       progresso: Number.isFinite(data.progresso) ? data.progresso : 0,
       resultado: data.resultado || null, ordem: Array.isArray(data.ordem) ? data.ordem.slice() : null,
       expiresAt: Date.now() + TTL_MS };
+    if (!isValidRecord(safe, produto)) return null;
     memory[produto] = safe;
     try { if (storage()) storage().setItem(key(produto), JSON.stringify(safe)); } catch (e) {}
     return safe;

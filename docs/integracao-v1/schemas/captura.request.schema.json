@@ -21,7 +21,7 @@
     "result": {"type": "object"},
     "scores": {"type": "object"},
     "consent": {
-      "type": "object", "additionalProperties": false, "required": ["granted", "captured_at", "purpose"],
+      "type": "object", "additionalProperties": false, "required": ["granted", "captured_at", "purpose", "version"],
       "properties": {
         "granted": {"const": true},
         "captured_at": {"type": "string", "format": "date-time"},
