@@ -71,6 +71,16 @@ class TestPublicBuild(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue((ROOT / "scripts" / "build-public.py").is_file())
 
+    def test_existing_external_directory_is_not_removed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "arbitrary"
+            output.mkdir()
+            sentinel = output / "do-not-delete.txt"
+            sentinel.write_text("preservar")
+            result = self.run_build(output)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(sentinel.read_text(), "preservar")
+
     def test_copy_tree_rejects_source_symlink(self):
         spec = importlib.util.spec_from_file_location("builder", BUILDER)
         builder = importlib.util.module_from_spec(spec)

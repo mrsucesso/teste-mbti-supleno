@@ -154,6 +154,7 @@
 -->
 <script src="../assets/nav.js" defer></script>
 <script src="config.js" onerror="window.SUPLENO_CONFIG = window.SUPLENO_CONFIG || {}; console.info('config.js não encontrado — rodando em modo aberto/local (ver README > Configuração).');"></script>
+<script src="../assets/integracao-v1-adapter.js"></script>
 <script src="../assets/funil-analytics.js" defer></script>
 <script src="../assets/progresso-local.js"></script>
 <script src="../assets/compartilhamento.js"></script>
@@ -527,7 +528,7 @@ function submitLead(e){
     fetch(WEBHOOK_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'}, // evita preflight CORS no Apps Script
-      body: JSON.stringify(payload)
+      body: JSON.stringify(adaptarCapturaV1(payload))
     }).then(response => {
         if(!response.ok){
           console.warn('Webhook respondeu com status HTTP ' + response.status);

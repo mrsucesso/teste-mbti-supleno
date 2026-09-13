@@ -23,6 +23,10 @@ def _validate_output(output: Path) -> Path:
     forbidden = (root, *root.parents, home)
     if resolved in forbidden:
         raise ValueError(f"saída insegura: {output}")
+    if resolved.is_relative_to(root) and resolved != root / "public":
+        raise ValueError(f"saída deve ser o diretório público dedicado: {output}")
+    if resolved.exists() and resolved != root / "public" and any(resolved.iterdir()):
+        raise ValueError(f"saída externa existente não é um diretório de build dedicado: {output}")
     if output.exists() and output.is_symlink():
         raise ValueError(f"saída symlink não permitida: {output}")
     return resolved

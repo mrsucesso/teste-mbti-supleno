@@ -80,6 +80,33 @@ if (!api.salvar('tipos', {respostas: ['E'], progresso: 1, ordem: [0], resultado:
         store[request["submission_id"]]["opt_out"] = True
         self.assertEqual(module.captura(store, request)["status"], "suppressed")
 
+    def test_frontends_use_explicit_v1_adapter_at_capture_boundary(self):
+        adapter = (ROOT / "assets/integracao-v1-adapter.js").read_text(encoding="utf-8")
+        self.assertIn("supleno.integracao.v1", adapter)
+        for product, page in PAGES.items():
+            text = page.read_text(encoding="utf-8")
+            self.assertIn("adaptarCapturaV1", text, product)
+            self.assertIn("adaptarCapturaV1(payload)", text, product)
+
+    def test_tracos_rejects_tampered_sum_percent_and_faixa(self):
+        script = r"""
+const fs = require('fs'), vm = require('vm');
+const source = fs.readFileSync('assets/progresso-local.js', 'utf8');
+const context = {Date, JSON, Number, Object, Array, localStorage: null};
+context.globalThis = context;
+vm.runInNewContext(source, context);
+const api = context.SuplenoProgresso;
+const valid = {respostas: Array(25).fill(3), progresso: 25, ordem: Array.from({length:25}, (_, i) => i),
+  resultado: Object.fromEntries(['SO','AN','OM','TE','CO'].map(d => [d, {sum:15, percent:50, faixa:'medio'}]))};
+if (!api.salvar('tracos', valid)) throw new Error('estado valido rejeitado');
+for (const field of ['sum', 'percent', 'faixa']) {
+  const bad = JSON.parse(JSON.stringify(valid));
+  bad.resultado.SO[field] = field === 'faixa' ? 'alto' : field === 'sum' ? 16 : 51;
+  if (api.salvar('tracos', bad) !== null) throw new Error('estado adulterado aceito: ' + field);
+}
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True)
+
 
 if __name__ == "__main__":
     unittest.main()
