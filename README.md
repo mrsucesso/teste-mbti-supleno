@@ -13,6 +13,11 @@ O Supleno Tipos possui 28 perguntas, 16 tipos e páginas de resultado com varia�
 
 Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos, bases ou automações de outros projetos.
 
+## Pré-requisitos de desenvolvimento
+
+- Python 3.9 ou superior.
+- Node.js 18 ou superior. A suíte executa probes comportamentais do Apps Script em subprocessos Node; Node não é opcional para validar o backend.
+
 ## Rotas e estrutura
 
 - `/` (`index.html`) — portal da família, com Supleno Tipos, Supleno Estilos, Supleno Traços e o futuro Mapa Integrado
@@ -31,10 +36,11 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 1. Implantar uma cópia de `apps-script/Code.gs` como backend compartilhado. O mesmo endpoint valida os contratos distintos de Tipos, Estilos e Traços.
 2. Informar essa URL publicada em `WEBHOOK_URL` no `config.js` local de cada produto (a partir de seu `config.example.js`). Sem URL, todos permanecem no modo seguro e não transmitem dados.
 3. Confirmar `CTA_URL` e `SITE_BASE_URL` no frontend e no backend.
-4. Criar as imagens e substituir todos os espaços reservados.
-5. Configurar origem, UTM, consentimento e métricas.
-6. Executar `python3 scripts/validate-content.py`.
-7. Homologar o fluxo completo com dados sintéticos.
+4. Configurar `OPTOUT_SECRET` em Script Properties e o gatilho de tempo de `processarOutbox` (ver "Opt-out" e "Fila de envio (outbox)"). Sem os dois, nenhum e-mail de resultado é enviado.
+5. Criar as imagens e substituir todos os espaços reservados.
+6. Configurar origem, UTM, consentimento e métricas.
+7. Executar `python3 scripts/validate-content.py`.
+8. Homologar o fluxo completo com dados sintéticos.
 
 ### Métricas do funil
 
@@ -67,6 +73,29 @@ O backend valida novamente todos os campos, aceita somente os gêneros `M` e `F`
 O formulário usa honeypot e, opcionalmente, `CONFIG_TOKEN`/`ACCESS_TOKEN`. Esse token fica visível no JavaScript público e não é segredo: ele apenas filtra robôs casuais. Antes da produção, configure o mesmo valor nos dois lados. O Apps Script também aplica limite de 5 envios por e-mail em 24 horas e 30 envios globais por minuto, usando `PropertiesService` e `LockService`. Excesso é recusado com resposta genérica.
 
 Em homologação sintética, deixe os tokens vazios e use apenas dados fictícios. Antes de publicar, faça uma rajada controlada com dados sintéticos e confirme que o limite é aplicado. CAPTCHA, WAF e monitoramento de cota continuam sendo responsabilidades da camada de publicação; o token público não substitui essas medidas.
+
+### Opt-out
+
+`apps-script/Code.gs` expõe cancelamento de e-mails na própria URL do Web App implantado (mesma URL do webhook, sem rota separada):
+
+- **Configuração obrigatória antes de produção:** defina `OPTOUT_SECRET` em Script Properties (Configurações do projeto > Propriedades do script), com um valor aleatório e estável — nunca no código versionado. Sem esse valor, o backend recusa gerar e validar qualquer token de cancelamento (fail-closed): nenhum e-mail de resultado é enviado enquanto isso não estiver configurado (ver "Fila de envio (outbox)").
+- **Token opaco e assinado:** o link de cancelamento incluído em todo e-mail (`?action=optout&token=...`) carrega um nonce hexadecimal opaco de 128 bits, derivado com HMAC-SHA256 e mapeado para o destinatário somente no servidor. O e-mail não faz parte do token nem pode ser recuperado da URL. O mapeamento expira em 180 dias.
+- **GET nunca altera estado:** abrir o link (`doGet`) apenas resolve o token e mostra uma página de confirmação. A supressão em si só ocorre em um segundo passo, via `POST` explícito (botão "Sim, confirmar cancelamento" do formulário da própria página) com `action=optout_confirm` e o token no corpo — não na query string — o que também evita CSRF por link direto (ex.: em pré-visualizações de e-mail que seguem GETs automaticamente).
+- **Persistência e bloqueio:** a confirmação grava a supressão em `PropertiesService` (por hash do e-mail, não em claro), cancela qualquer item ainda `pending` na outbox para aquele e-mail e passa a bloquear tanto recadastro (`doPost` de submissão) quanto qualquer envio futuro (checagem repetida em `processarOutbox`).
+
+### Fila de envio (outbox)
+
+O envio de e-mail nunca acontece no mesmo request da submissão. `doPost` grava o lead na planilha e enfileira a intenção de envio (`enqueueOutbox`, estado `pending`) sob o mesmo `LockService`; quem efetivamente chama `MailApp.sendEmail` é `processarOutbox`, executada por um **gatilho de tempo** configurado separadamente:
+
+1. No editor do Apps Script, menu relógio ("Acionadores" / "Triggers") > "Adicionar acionador".
+2. Função a executar: `processarOutbox`. Origem do evento: "Baseado em tempo". Frequência sugerida: a cada 5–10 minutos.
+3. Sem esse acionador configurado, os leads continuam sendo gravados normalmente na planilha, mas nenhum e-mail de resultado é enviado — a outbox só acumula itens `pending`.
+
+A fila fica na aba dedicada `Outbox`, uma linha por intenção, e não em `PropertiesService`. Cada execução processa no máximo 25 linhas e mantém apenas um cursor pequeno nas propriedades do script; o cancelamento por opt-out examina no máximo 500 linhas por operação. Cabeçalhos inesperados ou planilhas legadas falham de forma explícita antes de qualquer gravação, evitando dados deslocados entre colunas.
+
+Estados de cada item da outbox: `pending` (aguardando) → `sending` (lease reservada, envio em andamento) → `sent` (confirmado) ou `uncertain` (uma tentativa falhou, ou a lease de `sending` expirou sem confirmação). `MailApp` não aceita chave de idempotência do lado do Google, então uma exceção durante o envio não prova que o e-mail não foi entregue — por isso uma falha, ou uma lease `sending` vencida, nunca volta automaticamente para `pending`: viram `uncertain` e exigem decisão humana, via `outboxMarcarComoEnviadoManualmente(submissionId)` (confirma que já foi entregue) ou `outboxMarcarComoPendenteManualmente(submissionId)` (reabre para nova tentativa, só depois de confirmar que o envio anterior realmente não ocorreu). Não existe reenvio automático às cegas.
+
+A submissão em si usa a mesma lógica de lease: o registro de idempotência (`processing`) tem um prazo de validade; se o processo cair no meio do caminho, uma nova tentativa com o mesmo `submission_id`, após a lease expirar, retoma exatamente de onde parou (sem duplicar a linha na planilha nem a entrada da outbox) em vez de travar aquele `submission_id` para sempre.
 
 ### Funil de nutrição (contrato local de homologação)
 
@@ -137,6 +166,7 @@ Os testes reproduzíveis (suíte completa) são executados com:
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 python3 scripts/validate-content.py
+cp apps-script/Code.gs /tmp/testes-supleno-codegs.js && node --check /tmp/testes-supleno-codegs.js
 git diff --check
 ```
 

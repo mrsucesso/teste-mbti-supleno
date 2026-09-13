@@ -171,8 +171,8 @@ class TestFormulaInjectionProtection(unittest.TestCase):
         self.assertRegex(body, r"\^\[=\+\\?-@\\t\\r\]|\^\[=\+\-@\\t\\r\]")
 
     def test_all_appended_fields_are_sanitized(self):
-        body = extract_function_body(CODE_GS_TEXT, "appendLead")
-        for field in ("name", "email", "sigla", "whatsapp"):
+        body = extract_function_body(CODE_GS_TEXT, "appendLeadIdempotente")
+        for field in ("name", "email", "sigla", "whatsapp", "submissionId", "fingerprint"):
             self.assertIn(f"sanitizeForSheet({field})", body)
 
 
@@ -272,18 +272,60 @@ class TestAntiAbuse(unittest.TestCase):
     def test_submission_side_effects_are_atomic_under_script_lock(self):
         body = extract_function_body(CODE_GS_TEXT, "processSubmissionAtomically")
         self.assertIn("LockService.getScriptLock()", body)
-        duplicate = body.index("props.getProperty(idempotencyKey)")
-        reservation = body.index('status: "processing"')
-        rate_limit = body.index("checkRateLimitLocked(validated.email, props)")
-        append = body.index("appendLead(")
-        send = body.index("sendResultEmail(")
-        mark = body.index('status: "done"')
-        self.assertLess(duplicate, rate_limit)
-        self.assertLess(rate_limit, reservation)
-        self.assertLess(reservation, append)
-        self.assertLess(append, send)
-        self.assertLess(send, mark)
         self.assertIn("lock.releaseLock()", body)
+        duplicate = body.index("props.getProperty(idempotencyKey)")
+        # A segunda ocorrência é o caminho de submissão nova (a primeira está
+        # dentro do ramo de retomada de lease expirada, mais acima no corpo).
+        opt_out_fresh_path = body.rindex("estaOptOut(validated.email)")
+        rate_limit = body.index("checkRateLimitLocked(validated.email, props)")
+        release = body.index("lock.releaseLock()")
+        self.assertLess(duplicate, opt_out_fresh_path)
+        self.assertLess(opt_out_fresh_path, rate_limit)
+        self.assertLess(rate_limit, release)
+
+    def test_submission_reservation_has_lease_and_progress_flags(self):
+        # Idempotência "processing" órfã: sem lease/expiração, um processo que
+        # cai no meio do caminho trava o submission_id para sempre. As flags
+        # de progresso evitam duplicar appendLead/outbox ao retomar.
+        body = extract_function_body(CODE_GS_TEXT, "processSubmissionAtomically")
+        self.assertIn('status: "processing"', body)
+        self.assertIn("lease_until", body)
+        self.assertIn("lead_appended: false", body)
+        self.assertIn("outbox_enqueued: false", body)
+
+    def test_expired_lease_resumes_instead_of_blocking_forever(self):
+        body = extract_function_body(CODE_GS_TEXT, "processSubmissionAtomically")
+        self.assertIn("leaseUntil && leaseUntil >= now", body)
+        self.assertIn("concluirProcessamento(", body)
+
+    def test_valid_lease_rejects_concurrent_reprocessing(self):
+        body = extract_function_body(CODE_GS_TEXT, "processSubmissionAtomically")
+        self.assertIn("duplicate: true, processing: true", body)
+
+    def test_submission_path_never_calls_mailapp_directly(self):
+        # Achado da auditoria: a submissão deve apenas enfileirar (outbox),
+        # nunca enviar e-mail sincronamente no caminho de doPost.
+        for fn_name in ("processSubmissionAtomically", "concluirProcessamento", "doPost"):
+            body = extract_function_body(CODE_GS_TEXT, fn_name)
+            self.assertNotIn("sendResultEmail(", body, f"{fn_name} não deveria enviar e-mail diretamente")
+            self.assertNotIn("MailApp", body, f"{fn_name} não deveria chamar MailApp diretamente")
+        # MailApp.sendEmail só deve existir dentro de sendResultEmail (chamada
+        # real, feita por processarOutbox) — nunca duplicada em outro lugar.
+        self.assertEqual(CODE_GS_TEXT.count("MailApp.sendEmail("), 2)
+        send_result_body = extract_function_body(CODE_GS_TEXT, "sendResultEmail")
+        self.assertEqual(send_result_body.count("MailApp.sendEmail("), 2)
+
+    def test_lead_and_outbox_effects_persist_intent_before_marking_done(self):
+        body = extract_function_body(CODE_GS_TEXT, "concluirProcessamento")
+        lead_flag = body.index("state.lead_appended = true")
+        append = body.index("appendLeadIdempotente(")
+        outbox_flag = body.index("state.outbox_enqueued = true")
+        enqueue = body.index("enqueueOutbox(")
+        done = body.index('state.status = "done"')
+        self.assertLess(append, lead_flag)
+        self.assertLess(lead_flag, enqueue)
+        self.assertLess(enqueue, outbox_flag)
+        self.assertLess(outbox_flag, done)
 
     def test_backend_validates_all_three_products_and_scores(self):
         body = extract_function_body(CODE_GS_TEXT, "validateInput")

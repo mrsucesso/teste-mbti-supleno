@@ -19,8 +19,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
       - name: Executar testes de segurança e regressão
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Validar sintaxe do Apps Script
+        run: cp apps-script/Code.gs /tmp/testes-supleno-codegs.js && node --check /tmp/testes-supleno-codegs.js
       - name: Validar conteúdo editorial
         run: python3 scripts/validate-content.py
       - name: Verificar whitespace do diff

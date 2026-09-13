@@ -20,31 +20,37 @@ class OptOutApplication:
     def __call__(self, environ: dict, start_response):
         if environ.get("PATH_INFO") != "/optout":
             return self._respond(start_response, "404 Not Found", "Rota não encontrada.")
-        
-        params = parse_qs(environ.get("QUERY_STRING", ""), keep_blank_values=True)
-        token = params.get("token", [""])[0]
-        email = self.store.resolver_email_por_token(token)
-        if not email:
-            return self._respond(start_response, "400 Bad Request", "Link de cancelamento inválido.")
 
         if environ.get("REQUEST_METHOD") == "GET":
-            return self._respond_confirm(start_response, token)
-            
-        if environ.get("REQUEST_METHOD") == "POST":
-            # Proteger contra CSRF e scanners: exige o token no corpo do POST
-            request_body_size = int(environ.get('CONTENT_LENGTH', 0))
-            request_body = environ['wsgi.input'].read(request_body_size)
-            post_params = parse_qs(request_body.decode('utf-8'))
-            token_post = post_params.get("token", [""])[0]
-            if token_post != token:
-                return self._respond(start_response, "400 Bad Request", "Token de confirmação inválido.")
-            
+            params = parse_qs(environ.get("QUERY_STRING", ""), keep_blank_values=True)
+            token = params.get("token", [""])[0]
             email = self.store.resolver_email_por_token(token)
             if not email:
                 return self._respond(start_response, "400 Bad Request", "Link de cancelamento inválido.")
-            self.store.registrar_opt_out(email, token)
+            return self._respond_confirm(start_response, token)
+
+        if environ.get("REQUEST_METHOD") == "POST":
+            # A confirmação lê exclusivamente o corpo; query strings são ignoradas.
+            try:
+                request_body_size = int(environ.get("CONTENT_LENGTH") or 0)
+            except (TypeError, ValueError):
+                request_body_size = 0
+            stream = environ.get("wsgi.input")
+            request_body = stream.read(request_body_size) if stream is not None else b""
+            try:
+                post_params = parse_qs(request_body.decode("utf-8"), keep_blank_values=True)
+            except UnicodeDecodeError:
+                return self._respond(start_response, "400 Bad Request", "Token de confirmação inválido.")
+            token_post = post_params.get("token", [""])[0]
+            action = post_params.get("action", [""])[0]
+            if action != "optout_confirm" or not token_post:
+                return self._respond(start_response, "400 Bad Request", "Token de confirmação inválido.")
+            email = self.store.resolver_email_por_token(token_post)
+            if not email:
+                return self._respond(start_response, "400 Bad Request", "Link de cancelamento inválido.")
+            self.store.registrar_opt_out(email, token_post)
             return self._respond(start_response, "200 OK", "Recebimento de e-mails cancelado.")
-            
+
         return self._respond(start_response, "405 Method Not Allowed", "Método não permitido.")
 
     def _respond_confirm(self, start_response, token: str):
@@ -52,7 +58,8 @@ class OptOutApplication:
             "<!doctype html><html lang=\"pt-BR\"><meta charset=\"utf-8\">"
             "<title>Supleno</title><h1>Confirmar cancelamento</h1>"
             "<p>Deseja realmente parar de receber nossos e-mails?</p>"
-            "<form method=\"POST\" action=\"/optout?token={token}\">"
+            "<form method=\"POST\" action=\"/optout\">"
+            "<input type=\"hidden\" name=\"action\" value=\"optout_confirm\">"
             f"<input type=\"hidden\" name=\"token\" value=\"{token}\">"
             "<button type=\"submit\">Sim, confirmar cancelamento</button></form></html>"
         ).format(token=token).encode("utf-8")

@@ -52,7 +52,7 @@ class TestFase8D(unittest.TestCase):
         lead_reconciled = self.store.obter_lead("sub-stuck")
         self.assertIsNotNone(lead_reconciled)
         assert lead_reconciled is not None
-        self.assertEqual(lead_reconciled["envios"]["imediato"], "pending")
+        self.assertEqual(lead_reconciled["envios"]["imediato"], "uncertain")
 
 
 if __name__ == "__main__":

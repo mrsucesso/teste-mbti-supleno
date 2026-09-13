@@ -40,10 +40,10 @@ class TestOptOutServer(unittest.TestCase):
     def test_post_optout_registers(self):
         email = "test@example.com"
         token = self.store.gerar_optout_token(email)
-        body = f"token={token}".encode("utf-8")
+        body = f"action=optout_confirm&token={token}".encode("utf-8")
         environ = {
             "PATH_INFO": "/optout",
-            "QUERY_STRING": f"token={token}",
+            "QUERY_STRING": "",
             "REQUEST_METHOD": "POST",
             "CONTENT_LENGTH": str(len(body)),
             "wsgi.input": BytesIO(body),
@@ -51,6 +51,24 @@ class TestOptOutServer(unittest.TestCase):
         self.app(environ, self._start_response)
 
         self.assertTrue(self.store.esta_opt_out(email))
+
+    def test_post_without_wsgi_input_fails_controlled_and_ignores_query(self):
+        status = []
+
+        def start_response(value, _headers):
+            status.append(value)
+
+        response = self.app(
+            {
+                "PATH_INFO": "/optout",
+                "REQUEST_METHOD": "POST",
+                "QUERY_STRING": "action=optout_confirm&token=qualquer",
+                "CONTENT_LENGTH": "0",
+            },
+            start_response,
+        )
+        self.assertEqual(status[0], "400 Bad Request")
+        self.assertTrue(b"inv\xc3\xa1lido" in b"".join(response))
 
 
 if __name__ == "__main__":

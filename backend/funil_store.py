@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 # não há como esta biblioteca disparar qualquer comunicação de verdade.
 SANDBOX_MODE = True
 
+# Validade do vínculo nonce -> e-mail do token de opt-out. Generoso porque o
+# link vive dentro de e-mails já enviados (não é renovável pelo destinatário).
+OPTOUT_TOKEN_TTL_DIAS_PADRAO = 180
+
 # Os três produtos da família Testes Supleno (ver README > Rotas e estrutura).
 TESTES_VALIDOS = frozenset({"tipos", "estilos", "tracos"})
 
@@ -143,6 +147,21 @@ def mask_email(email: str) -> str:
     return f"{masked_local}@{domain}"
 
 
+def _fingerprint_canonico(campos: dict) -> str:
+    """Hash determinístico do payload canônico de um lead — usado para
+    detectar reaproveitamento indevido de submission_id com dados
+    diferentes (ver registrar_lead)."""
+    canonical = json.dumps(campos, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _nonce_para_email(secret: bytes, email_normalizado: str) -> str:
+    """Nonce opaco e determinístico (HMAC do e-mail): função de mão única,
+    não há forma de recuperar o e-mail a partir do nonce."""
+    mac = hmac.new(secret, email_normalizado.encode("utf-8"), hashlib.sha256).hexdigest()
+    return mac[:32]
+
+
 def render_template(estagio: str, contexto: dict) -> dict:
     """Renderiza o template de um estágio, substituindo os placeholders."""
     template = TEMPLATES.get(estagio)
@@ -170,6 +189,7 @@ class FunilStore:
         cta_url: str = "https://supleno.com",
         optout_base_url: str = "https://testes.supleno.com",
         optout_secret: Optional[str] = None,
+        optout_token_ttl_dias: int = OPTOUT_TOKEN_TTL_DIAS_PADRAO,
     ) -> None:
         if not sandbox and adaptador_envio_real is None:
             raise ValueError(
@@ -182,16 +202,19 @@ class FunilStore:
         self.cta_url = cta_url
         self.optout_base_url = optout_base_url
         self.optout_secret = (optout_secret or secrets.token_urlsafe(32)).encode("utf-8")
+        self.optout_token_ttl_dias = optout_token_ttl_dias
         self._lock = threading.RLock()
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._leads: dict[str, dict] = {}
         self._opt_out_emails: set[str] = set()
+        self._optout_tokens: dict[str, dict] = {}
         self._carregar()
 
     def _carregar(self) -> None:
         self._leads = {}
         self._opt_out_emails = set()
+        self._optout_tokens = {}
         if not self.path.exists():
             return
         with self.path.open("r", encoding="utf-8") as arquivo:
@@ -199,10 +222,18 @@ class FunilStore:
                 linha = linha.strip()
                 if not linha:
                     continue
-                lead = json.loads(linha)
-                if lead.get("record_type") == "opt_out":
-                    self._opt_out_emails.add(lead["email"].strip().lower())
+                registro = json.loads(linha)
+                tipo_registro = registro.get("record_type")
+                if tipo_registro == "opt_out":
+                    self._opt_out_emails.add(registro["email"].strip().lower())
                     continue
+                if tipo_registro == "optout_token":
+                    self._optout_tokens[registro["token"]] = {
+                        "email": registro["email"],
+                        "expires_at": registro["expires_at"],
+                    }
+                    continue
+                lead = registro
                 self._leads[lead["submission_id"]] = lead
                 if lead.get("opt_out"):
                     self._opt_out_emails.add(lead["email"].strip().lower())
@@ -245,22 +276,40 @@ class FunilStore:
             dia = agora.date().isoformat()
             submission_id = f"auto:{teste}:{email.lower()}:{dia}"
 
+        resultado = payload.get("resultado") or {}
+        pontuacoes = payload.get("pontuacoes") or {}
+        utm_source = payload.get("utm_source") or ""
+        utm_medium = payload.get("utm_medium") or ""
+        utm_campaign = payload.get("utm_campaign") or ""
+        origem = payload.get("origem") or ""
+        fingerprint = _fingerprint_canonico({
+            "teste": teste, "nome": nome, "email": email.lower(), "whatsapp": whatsapp,
+            "resultado": resultado, "pontuacoes": pontuacoes,
+            "utm_source": utm_source, "utm_medium": utm_medium,
+            "utm_campaign": utm_campaign, "origem": origem,
+        })
+
         with self._lock, self._lock_processo():
             self._carregar()
             if email.lower() in self._opt_out_emails:
                 raise ValueError("e-mail com opt-out ativo; recadastro bloqueado")
             existente = self._leads.get(submission_id)
             if existente is not None:
+                if existente.get("fingerprint") != fingerprint:
+                    raise ValueError(
+                        f"submission_id {submission_id!r} já usado com um payload diferente"
+                    )
                 logger.info("lead duplicado ignorado: teste=%s email=%s submission_id=%s", teste, mask_email(email), submission_id)
                 return {"ok": True, "duplicado": True, "submission_id": submission_id}
             lead = {
                 "submission_id": submission_id, "teste": teste, "nome": nome,
                 "email": email, "whatsapp": whatsapp, "consentimento": True,
-                "resultado": payload.get("resultado") or {}, "pontuacoes": payload.get("pontuacoes") or {},
-                "utm_source": payload.get("utm_source") or "", "utm_medium": payload.get("utm_medium") or "",
-                "utm_campaign": payload.get("utm_campaign") or "", "origem": payload.get("origem") or "",
+                "resultado": resultado, "pontuacoes": pontuacoes,
+                "utm_source": utm_source, "utm_medium": utm_medium,
+                "utm_campaign": utm_campaign, "origem": origem,
                 "data_criacao": agora.isoformat(), "estado_sequencia": "pendente", "opt_out": False,
                 "envios": {estagio: "pending" for estagio in ESTAGIOS},
+                "fingerprint": fingerprint,
             }
             self._leads[submission_id] = lead
             self._persistir_tudo_locked()
@@ -276,12 +325,29 @@ class FunilStore:
     def listar_leads(self) -> list:
         return list(self._leads.values())
 
-    def gerar_optout_token(self, email: str) -> str:
+    def gerar_optout_token(self, email: str, agora: Optional[datetime] = None) -> str:
+        """Gera um nonce opaco e determinístico (HMAC do e-mail) sem
+        NENHUM dado do e-mail codificado de forma reversível dentro dele.
+        A ligação nonce -> e-mail fica persistida (com expiração
+        renovável) e é o único lugar de onde o e-mail pode ser recuperado.
+        """
+        agora = agora or datetime.now(timezone.utc)
+        with self._lock, self._lock_processo():
+            self._carregar()
+            nonce = self._gerar_optout_token_locked(email, agora)
+            self._persistir_tudo_locked()
+        return nonce
+
+    def _gerar_optout_token_locked(self, email: str, agora: datetime) -> str:
+        """Cria/renova o vínculo quando o chamador já mantém os locks."""
         normalizado = (email or "").strip().lower()
-        normalizado_bytes = normalizado.encode("utf-8")
-        mac = hmac.new(self.optout_secret, normalizado_bytes, hashlib.sha256).hexdigest()
-        b64_email = base64.urlsafe_b64encode(normalizado_bytes).decode("utf-8").rstrip("=")
-        return f"{b64_email}.{mac}"
+        nonce = _nonce_para_email(self.optout_secret, normalizado)
+        expira_em = agora + timedelta(days=self.optout_token_ttl_dias)
+        self._optout_tokens[nonce] = {
+            "email": normalizado,
+            "expires_at": expira_em.isoformat(),
+        }
+        return nonce
 
     def registrar_opt_out(self, email: str, token: Optional[str] = None) -> dict:
         email_normalizado = (email or "").strip().lower()
@@ -304,27 +370,37 @@ class FunilStore:
         logger.info("opt-out registrado: email=%s afetados=%d", mask_email(email), afetados)
         return {"ok": True, "afetados": afetados}
 
-    def resolver_email_por_token(self, token: str) -> Optional[str]:
-        """Resolve um e-mail a partir de um token assinado (b64.hmac)
-        mesmo se ainda não houver lead local."""
-        if not token or "." not in token:
+    def resolver_email_por_token(self, token: Optional[str], agora: Optional[datetime] = None) -> Optional[str]:
+        """Resolve um e-mail a partir do nonce opaco de opt-out, mesmo sem
+        lead local: só depende do vínculo persistido nonce -> e-mail criado
+        em gerar_optout_token. Confere expiração e recomputa o nonce
+        esperado a partir do e-mail guardado, como verificação de
+        integridade — se o registro persistido foi adulterado por qualquer
+        via, a resolução falha (fail-closed)."""
+        agora = agora or datetime.now(timezone.utc)
+        if not token:
+            return None
+        nonce = token.strip().lower()
+        if not re.fullmatch(r"[0-9a-f]{32}", nonce):
             return None
         with self._lock, self._lock_processo():
             self._carregar()
-            try:
-                b64_email, mac = token.split(".", 1)
-                missing_padding = len(b64_email) % 4
-                if missing_padding:
-                    b64_email += "=" * (4 - missing_padding)
-                email_bytes = base64.urlsafe_b64decode(b64_email.encode("utf-8"))
-                email = email_bytes.decode("utf-8").strip().lower()
-                
-                expected_mac = hmac.new(self.optout_secret, email_bytes, hashlib.sha256).hexdigest()
-                if hmac.compare_digest(mac, expected_mac):
-                    return email
-            except Exception:
+            registro = self._optout_tokens.get(nonce)
+            if not registro:
                 return None
-        return None
+            try:
+                expira_em = datetime.fromisoformat(registro["expires_at"])
+            except (KeyError, ValueError):
+                return None
+            if expira_em.tzinfo is None:
+                expira_em = expira_em.replace(tzinfo=timezone.utc)
+            if agora >= expira_em:
+                return None
+            email_guardado = registro.get("email", "")
+            esperado = _nonce_para_email(self.optout_secret, email_guardado)
+            if not hmac.compare_digest(nonce, esperado):
+                return None
+            return email_guardado
 
     def marcar_enviado_manualmente(self, submission_id: str, estagio: str) -> None:
         """Marca um estágio como enviado, útil para reconciliação manual."""
@@ -333,6 +409,8 @@ class FunilStore:
             lead = self._leads.get(submission_id)
             if not lead:
                 raise ValueError(f"lead {submission_id} não encontrado")
+            if lead.setdefault("envios", {}).get(estagio) != "uncertain":
+                raise ValueError("reconciliação manual só aceita estágio uncertain")
             lead.setdefault("envios", {})[estagio] = "sent"
             lead["estado_sequencia"] = _ESTADO_APOS_ESTAGIO[estagio]
             self._persistir_tudo_locked()
@@ -407,14 +485,14 @@ class FunilStore:
                                 if ts.tzinfo is None:
                                     ts = ts.replace(tzinfo=timezone.utc)
                                 if (agora - ts).total_seconds() > lease_timeout_segundos:
-                                    envios[estagio] = "pending"
+                                    envios[estagio] = "uncertain"
                                     reconciliados += 1
                             except ValueError:
-                                envios[estagio] = "pending"
+                                envios[estagio] = "uncertain"
                                 reconciliados += 1
                         else:
                             # Se não houver timestamp mas está em sending, recupera por precaução
-                            envios[estagio] = "pending"
+                            envios[estagio] = "uncertain"
                             reconciliados += 1
             if reconciliados > 0:
                 self._persistir_tudo_locked()
@@ -446,7 +524,7 @@ class FunilStore:
             "produto": _NOME_PRODUTO.get(lead["teste"], lead["teste"]),
             "resultado_texto": resultado_texto,
             "cta_url": self.cta_url,
-            "optout_url": f"{self.optout_base_url}/optout?token={quote(self.gerar_optout_token(lead['email']))}",
+            "optout_url": f"{self.optout_base_url}/optout?token={quote(self._gerar_optout_token_locked(lead['email'], datetime.now(timezone.utc)))}",
         }
 
     def _persistir_tudo(self) -> None:
@@ -459,6 +537,14 @@ class FunilStore:
         with temporario.open("w", encoding="utf-8") as arquivo:
             for email in sorted(self._opt_out_emails):
                 arquivo.write(json.dumps({"record_type": "opt_out", "email": email}, ensure_ascii=False))
+                arquivo.write("\n")
+            for token, registro in self._optout_tokens.items():
+                arquivo.write(json.dumps({
+                    "record_type": "optout_token",
+                    "token": token,
+                    "email": registro["email"],
+                    "expires_at": registro["expires_at"],
+                }, ensure_ascii=False))
                 arquivo.write("\n")
             for lead in self._leads.values():
                 arquivo.write(json.dumps(lead, ensure_ascii=False))

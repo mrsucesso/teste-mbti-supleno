@@ -311,7 +311,7 @@ class TestOptOut(unittest.TestCase):
         self.store.registrar_lead(payload_base(submission_id="sub-optout-token", email=email))
         token = self.store.gerar_optout_token(email)
         app = OptOutApplication(self.store)
-        
+
         # GET não deve alterar estado
         statuses = []
         body = b"".join(app(
@@ -324,9 +324,9 @@ class TestOptOut(unittest.TestCase):
 
         # POST deve persistir
         statuses = []
-        body_post = f"token={token}".encode("utf-8")
+        body_post = f"action=optout_confirm&token={token}".encode("utf-8")
         body = b"".join(app(
-            {"REQUEST_METHOD": "POST", "PATH_INFO": "/optout", "QUERY_STRING": f"token={token}", "CONTENT_LENGTH": str(len(body_post)), "wsgi.input": BytesIO(body_post)},
+            {"REQUEST_METHOD": "POST", "PATH_INFO": "/optout", "QUERY_STRING": "", "CONTENT_LENGTH": str(len(body_post)), "wsgi.input": BytesIO(body_post)},
             lambda status, _headers: statuses.append(status),
         ))
         self.assertEqual(statuses, ["200 OK"])
@@ -346,10 +346,15 @@ class TestOptOut(unittest.TestCase):
             store.registrar_lead(payload_base(submission_id="sub-recon"), agora=agora)
             with self.assertRaises(RuntimeError):
                 store.processar_fila(agora=agora)
-            
-            # Reconciliação manual: marcar como sent
+
+            # A lease expirada vira uncertain; só então a decisão humana
+            # pode confirmar o envio sem reenviar às cegas.
+            store.reconciliar_outbox(
+                lease_timeout_segundos=60,
+                agora=agora + timedelta(minutes=2),
+            )
             store.marcar_enviado_manualmente("sub-recon", "imediato")
-            
+
             # Não deve tentar enviar novamente
             self.assertEqual(store.processar_fila(agora=agora), [])
             self.assertEqual(len(attempts), 1)
