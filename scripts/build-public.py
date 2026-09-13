@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ROOT_FILES = ("index.html", "404.html", "robots.txt", "sitemap.xml")
-PUBLIC_DIRS = ("assets", "resultados", "tipos", "estilos", "tracos", "privacidade", "metodologia")
+PUBLIC_DIRS = ("assets", "resultados", "tipos", "estilos", "tracos", "mapa", "privacidade", "metodologia")
 CONFIG_DIRS = ("tipos", "estilos", "tracos")
 
 

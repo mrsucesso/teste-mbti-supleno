@@ -20,11 +20,12 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 
 ## Rotas e estrutura
 
-- `/` (`index.html`) — portal da família, com Supleno Tipos, Supleno Estilos, Supleno Traços e o futuro Mapa Integrado
+- `/` (`index.html`) — portal da família, com Supleno Tipos, Supleno Estilos, Supleno Traços e o Mapa Integrado
 - `/tipos/` (`tipos/index.html`) — introdução, 28 perguntas, captura e resultado resumido
 - `/tipos/resultados/{tipo}-{m|f}.html` — 32 páginas de resultado
 - `/estilos/` — teste educativo de 24 perguntas, com resultado básico imediato e captura opcional posterior
 - `/tracos/` — teste educativo de 25 afirmações, cinco dimensões contínuas, resultado imediato e captura opcional posterior
+- `/mapa/` — combinação local dos três resultados, com links para concluir o que falta e controles para apagar, imprimir e compartilhar
 - `/privacidade/` — transparência sobre modo seguro, dados, consentimento, opt-out e retenção a definir
 - `/metodologia/` — metodologia e limitações dos três testes, sem alegação clínica ou científica indevida
 - `assets/style.css` — estilo compartilhado
