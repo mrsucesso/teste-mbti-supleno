@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "tracos" / "index.html"
 TEXT = INDEX.read_text(encoding="utf-8")
+PORTAL_TEXT = (ROOT / "index.html").read_text(encoding="utf-8")
 
 
 def extract_questions() -> list[dict]:
@@ -20,6 +21,15 @@ def extract_questions() -> list[dict]:
 
 
 class TestBancoTracos(unittest.TestCase):
+    def test_portal_presents_tracos_as_available(self):
+        card = PORTAL_TEXT[PORTAL_TEXT.index("<h2>Supleno Traços</h2>") - 100:]
+        card = card[:card.index("</article>")]
+        self.assertIn('<span class="badge live">Disponível</span>', card)
+        self.assertIn("Um teste de 25 perguntas", card)
+        self.assertIn('href="tracos/">Fazer o teste</a>', card)
+        self.assertNotIn("Em construção", card)
+        self.assertNotIn("Ver prévia", card)
+
     def test_has_25_original_questions_and_five_dimensions(self):
         questions = extract_questions()
         self.assertEqual(len(questions), 25)
