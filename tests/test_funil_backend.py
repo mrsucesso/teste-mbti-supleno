@@ -601,6 +601,34 @@ class TestRetencaoLocal(unittest.TestCase):
             self.assertIsNone(store.resolver_email_por_token("a" * 32, agora=datetime(2026, 1, 1, tzinfo=timezone.utc)))
             self.assertNotIn("old@example.com", path.read_text(encoding="utf-8"))
 
+    def test_loading_store_purges_legacy_optout_without_timestamp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            path.write_text(
+                json.dumps({"record_type": "opt_out", "email": "legacy@example.com"}) + "\n",
+                encoding="utf-8",
+            )
+
+            store = FunilStore(path, optout_secret="secret")
+
+            self.assertFalse(store.esta_opt_out("legacy@example.com"))
+            self.assertNotIn("legacy@example.com", path.read_text(encoding="utf-8"))
+
+    def test_loading_store_preserves_recent_optout_derived_from_lead(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            lead = payload_base(submission_id="recent-optout", email="recent@example.com")
+            lead.update({
+                "data_criacao": datetime.now(timezone.utc).isoformat(),
+                "estado_sequencia": "opt_out",
+                "opt_out": True,
+            })
+            path.write_text(json.dumps(lead) + "\n", encoding="utf-8")
+
+            store = FunilStore(path, optout_secret="secret")
+
+            self.assertTrue(store.esta_opt_out("recent@example.com"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

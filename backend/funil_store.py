@@ -243,7 +243,10 @@ class FunilStore:
                 lead = registro
                 self._leads[lead["submission_id"]] = lead
                 if lead.get("opt_out"):
-                    self._opt_out_emails.add(lead["email"].strip().lower())
+                    email = lead["email"].strip().lower()
+                    self._opt_out_emails.add(email)
+                    if email not in self._opt_out_registered_at and lead.get("data_criacao"):
+                        self._opt_out_registered_at[email] = lead["data_criacao"]
 
     @contextmanager
     def _lock_processo(self):
@@ -586,10 +589,19 @@ class FunilStore:
                 if expira <= agora:
                     del self._optout_tokens[token]
                     removidos += 1
-            for email, timestamp in list(self._opt_out_registered_at.items()):
+            for email in list(self._opt_out_emails):
+                timestamp = self._opt_out_registered_at.get(email)
+                if not isinstance(timestamp, str):
+                    self._opt_out_registered_at.pop(email, None)
+                    self._opt_out_emails.discard(email)
+                    removidos += 1
+                    continue
                 try:
                     registrado = datetime.fromisoformat(timestamp)
-                except (TypeError, ValueError):
+                except ValueError:
+                    self._opt_out_registered_at.pop(email, None)
+                    self._opt_out_emails.discard(email)
+                    removidos += 1
                     continue
                 if registrado.tzinfo is None:
                     registrado = registrado.replace(tzinfo=timezone.utc)

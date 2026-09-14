@@ -1458,6 +1458,22 @@ class TestRetentionPurge(unittest.TestCase):
         self.assertIn("rl_email_fresh@example.com_30000", result["keys"])
         self.assertIn("submission_fresh", result["keys"])
 
+    def test_purge_removes_invalid_optout_properties(self):
+        [result] = run_node(
+            """
+            __store['optout_legacy'] = '1';
+            __store['optout_malformed'] = '{';
+            __store['optout_missing_timestamp'] = JSON.stringify({});
+            __store['optout_invalid_timestamp'] = JSON.stringify({registered_at: 'não-é-data'});
+            purgarDadosExpirados(new Date('2026-09-10T00:00:00.000Z'));
+            dumpState({keys: Object.keys(__store).sort()});
+            """
+        )
+        self.assertNotIn("optout_legacy", result["keys"])
+        self.assertNotIn("optout_malformed", result["keys"])
+        self.assertNotIn("optout_missing_timestamp", result["keys"])
+        self.assertNotIn("optout_invalid_timestamp", result["keys"])
+
     def test_purge_runs_without_optout_secret(self):
         [result] = run_node(
             """

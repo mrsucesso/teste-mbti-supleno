@@ -1107,8 +1107,8 @@ function purgarDadosExpirados(agora) {
       try {
         const registered = JSON.parse(raw).registered_at;
         const timestamp = timestampSeguro(registered);
-        if (timestamp !== null && timestamp < limite) props.deleteProperty(key);
-      } catch (_) { if (raw === "1") props.deleteProperty(key); }
+        if (timestamp === null || timestamp < limite) props.deleteProperty(key);
+      } catch (_) { props.deleteProperty(key); }
     } else if (key.indexOf("rl_email_") === 0) {
       const bucket = Number(key.slice(key.lastIndexOf("_") + 1));
       if (Number.isFinite(bucket) && bucket * 86400000 < limite) props.deleteProperty(key);
