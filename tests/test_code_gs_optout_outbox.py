@@ -40,7 +40,7 @@ DEFAULT_OPTOUT_SECRET = "test-optout-secret"
 # teste dedicado (test_outbox_headers_match_expected_contract) trava isso.
 OUTBOX_HEADERS = [
     "submission_id", "fingerprint", "state", "lease_until", "attempts",
-    "email", "name", "code", "gender", "teste", "resultado", "pontuacoes",
+    "email", "name", "code", "gender", "teste", "resultado", "pontuacoes", "attribution",
     "enqueued_at", "sent_at", "reconciled_at",
 ]
 
@@ -299,6 +299,7 @@ def lead_payload(submission_id: str = "sub-1", email: str = "lead@example.com", 
         "teste": "tipos",
         "resultado": {"code": "INTJ", "gender": "F"},
         "pontuacoes": {"E": 2, "I": 5, "S": 3, "N": 4, "T": 4, "F": 3, "J": 5, "P": 2},
+        "attribution": {"utm_source": "teste", "origin": "local"},
         "consentimento": True,
         "submission_id": submission_id,
         "website": "",
@@ -321,7 +322,7 @@ def outbox_entries(result: dict) -> list[dict]:
     for row in data_rows:
         entry = dict(zip(header, row))
         entry["attempts"] = int(entry["attempts"]) if entry["attempts"] not in ("", None) else 0
-        for key in ("resultado", "pontuacoes"):
+        for key in ("resultado", "pontuacoes", "attribution"):
             entry[key] = json.loads(entry[key]) if entry[key] else None
         for key in ("lease_until", "sent_at", "reconciled_at"):
             entry[key] = entry[key] if entry[key] else None
@@ -597,11 +598,14 @@ class TestOptOutPostConfirmation(unittest.TestCase):
 
     def test_plain_json_lead_submission_is_not_confused_with_optout_confirm(self):
         [result] = run_node(
-            "dumpState({ response: doPost({ postData: { contents: JSON.stringify(%s) } }).getContent() });"
+            "dumpState({ response: doPost({ postData: { contents: JSON.stringify(%s) } }).getContent(), outboxRows: __sheets['Outbox'] ? __sheets['Outbox'].rows : [] });"
             % json.dumps(lead_payload())
         )
         self.assertEqual(json.loads(result["response"]), {"ok": True})
         self.assertEqual(len(result["sheetRows"]), 2)  # cabeçalho + 1 lead
+        self.assertEqual(json.loads(result["sheetRows"][1][8]), {"origin": "local", "utm_source": "teste"})
+        entries = outbox_entries(result)
+        self.assertEqual(entries[0]["attribution"], {"origin": "local", "utm_source": "teste"})
 
     def test_optout_url_never_carries_email_as_a_query_parameter(self):
         for fn_name in ("optoutConfirmPage", "optoutLinkHtml"):
@@ -1146,7 +1150,7 @@ class TestIdempotencyLeaseReconciliation(unittest.TestCase):
         self.assertEqual(len(result["sheetRows"]), 1, "o pré-voo pode criar somente o cabeçalho")
         self.assertEqual(result["sheetRows"][0], [
             "Data", "Nome", "E-mail", "Sigla", "WhatsApp", "Produto",
-            "Resultado", "Pontuações", "Submission ID", "Fingerprint",
+            "Resultado", "Pontuações", "Atribuição", "Submission ID", "Fingerprint",
         ])
         self.assertEqual(len(outbox_entries(result)), 1, "a etapa pendente (outbox) deve ser concluída")
         self.assertEqual(result["finalState"]["status"], "done")

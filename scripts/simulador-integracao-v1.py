@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 CONTRACT = "supleno.integracao.v1"
 SEQUENCE = ["imediato", "d1", "d3", "d5", "d7"]
 PRODUCTS = {"tipos", "estilos", "tracos"}
-REQUIRED = {"contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution"}
-ROOT_FIELDS = REQUIRED | {"scores", "opt_out"}
+REQUIRED = {"contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "access_token"}
+ROOT_FIELDS = REQUIRED | {"opt_out"}
 ORIGIN_PII = re.compile(r"(?:@|\b\d{8,}\b)")
 
 
@@ -49,7 +49,9 @@ def validar_request(request):
         return False
     if request.get("product") not in PRODUCTS or not isinstance(request.get("result"), dict):
         return False
-    if "scores" in request and not isinstance(request["scores"], dict):
+    if not isinstance(request.get("access_token"), str) or not 1 <= len(request["access_token"]) <= 256:
+        return False
+    if not isinstance(request["scores"], dict):
         return False
     person = request.get("person")
     if (not isinstance(person, dict) or set(person) - {"name", "email", "whatsapp"}
@@ -108,6 +110,7 @@ def main():
     request = {
         "contract": CONTRACT,
         "submission_id": "synthetic-10e-0001",
+        "access_token": "test-access-token",
         "product": "tipos",
         "person": {"name": "Pessoa Sintética", "email": "sintetico@example.invalid"},
         "result": {"code": "INTJ", "gender": "F"},

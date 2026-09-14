@@ -32,7 +32,8 @@ for (const value of [{code:'D'}, 'I']) {
         for token in ("ACCESS_TOKEN", "hasOnlyKeys", "validateAttribution", "normalizeAttribution", "data.scores", "data.attribution"):
             self.assertIn(token, source)
         self.assertIn("attribution: data.attribution", source)
-        self.assertIn("canonicalJsonValue(validated)", source)
+        self.assertIn('"Atribuição"', source)
+        self.assertIn('attribution: validated.attribution', source)
 
     def test_adapter_keeps_public_antiabuse_token_outside_legacy_fields(self):
         source = (ROOT / "assets/integracao-v1-adapter.js").read_text(encoding="utf-8")

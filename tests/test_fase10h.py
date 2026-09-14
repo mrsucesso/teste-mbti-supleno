@@ -19,6 +19,7 @@ class TestFase10H(unittest.TestCase):
         request = {
             "contract": "supleno.integracao.v1",
             "submission_id": "synthetic",
+            "access_token": "test-access-token",
             "product": "tipos",
             "person": {"name": "Pessoa", "email": "pessoa@example.invalid"},
             "result": {"code": "INTJ", "gender": "M"},

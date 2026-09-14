@@ -93,7 +93,7 @@ O backend valida novamente todos os campos, aceita somente os gêneros `M` e `F`
 
 O formulário usa honeypot e `CONFIG_TOKEN`/`ACCESS_TOKEN` obrigatório no contrato v1. Esse token fica visível no JavaScript público e não é segredo: ele apenas filtra robôs casuais, não autentica uma pessoa. Antes da produção, configure o mesmo valor nos dois lados. O Apps Script também aplica limite de 5 envios por e-mail em 24 horas e 30 envios globais por minuto, usando `PropertiesService` e `LockService`; consentimento, schema estrito e opt-out são verificados no servidor. Excesso ou token ausente/incorreto é recusado com resposta genérica.
 
-Em homologação sintética, deixe os tokens vazios e use apenas dados fictícios. Antes de publicar, faça uma rajada controlada com dados sintéticos e confirme que o limite é aplicado. CAPTCHA, WAF e monitoramento de cota continuam sendo responsabilidades da camada de publicação; o token público não substitui essas medidas.
+Em homologação sintética, use `test-access-token` somente nos fixtures locais e dados fictícios; tokens vazios devem ser rejeitados pelo contrato v1. Antes de publicar, faça uma rajada controlada com dados sintéticos e confirme que o limite é aplicado. CAPTCHA, WAF e monitoramento de cota continuam sendo responsabilidades da camada de publicação; o token público não substitui essas medidas.
 
 ### Opt-out
 

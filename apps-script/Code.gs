@@ -867,7 +867,7 @@ function optoutConfirmPage(token) {
 // divergirem. Uma linha por item da fila — nunca payload em Script Properties.
 const OUTBOX_HEADERS = [
   "submission_id", "fingerprint", "state", "lease_until", "attempts",
-  "email", "name", "code", "gender", "teste", "resultado", "pontuacoes",
+  "email", "name", "code", "gender", "teste", "resultado", "pontuacoes", "attribution",
   "enqueued_at", "sent_at", "reconciled_at"
 ];
 
@@ -875,7 +875,7 @@ const OUTBOX_HEADERS = [
 // caracteres de controle) passam por sanitizeForSheet antes de virar célula,
 // igual a appendLeadIdempotente — proteção contra injeção de fórmula.
 const OUTBOX_SANITIZED_FIELDS = [
-  "submission_id", "fingerprint", "email", "name", "code", "gender", "teste", "resultado", "pontuacoes"
+  "submission_id", "fingerprint", "email", "name", "code", "gender", "teste", "resultado", "pontuacoes", "attribution"
 ];
 
 function outboxColumnIndex(headerName) {
@@ -910,7 +910,7 @@ function getOutboxSheet() {
 function outboxEntryToRowValues(entry) {
   return OUTBOX_HEADERS.map(function (header) {
     let value = entry[header];
-    if (header === "resultado" || header === "pontuacoes") {
+    if (header === "resultado" || header === "pontuacoes" || header === "attribution") {
       value = (value === undefined || value === null || value === "") ? "" : JSON.stringify(value);
     } else if (header === "attempts") {
       return Number(value || 0);
@@ -928,7 +928,7 @@ function outboxRowValuesToEntry(rowValues, rowNumber) {
   const entry = { _row: rowNumber };
   OUTBOX_HEADERS.forEach(function (header, i) {
     const raw = rowValues[i];
-    if (header === "resultado" || header === "pontuacoes") {
+    if (header === "resultado" || header === "pontuacoes" || header === "attribution") {
       entry[header] = raw ? JSON.parse(raw) : null;
     } else if (header === "attempts") {
       entry[header] = Number(raw || 0);
@@ -993,6 +993,7 @@ function enqueueOutbox(submissionId, validated, fingerprint) {
     teste: validated.teste,
     resultado: validated.resultado,
     pontuacoes: validated.pontuacoes,
+    attribution: validated.attribution,
     enqueued_at: now,
     sent_at: "",
     reconciled_at: "",
@@ -1238,7 +1239,7 @@ function concluirProcessamento(validated, submissionId, fingerprint, state, prop
   getSheet();
   if (!state.lead_appended) {
     appendLeadIdempotente(validated.name, validated.email, validated.whatsapp, validated.sigla,
-      validated.teste, validated.resultado, validated.pontuacoes, submissionId, fingerprint);
+      validated.teste, validated.resultado, validated.pontuacoes, submissionId, fingerprint, validated.attribution);
     state.lead_appended = true;
     props.setProperty(idempotencyKey, JSON.stringify(state));
   }
@@ -1298,7 +1299,7 @@ function checkRateLimitLocked(email, props) {
 // Única fonte de verdade para as colunas da planilha "Leads MBTI": usada
 // tanto para escrever o cabeçalho quanto para localizar a coluna do
 // Submission ID em appendLeadIdempotente, para as duas nunca divergirem.
-const LEAD_SHEET_HEADERS = ["Data", "Nome", "E-mail", "Sigla", "WhatsApp", "Produto", "Resultado", "Pontuações", "Submission ID", "Fingerprint"];
+const LEAD_SHEET_HEADERS = ["Data", "Nome", "E-mail", "Sigla", "WhatsApp", "Produto", "Resultado", "Pontuações", "Atribuição", "Submission ID", "Fingerprint"];
 
 function getSheet() {
   const ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
@@ -1342,7 +1343,7 @@ function sanitizeForSheet(value) {
  * físico e a persistência de lead_appended=true em PropertiesService — se o
  * processo cair exatamente nesse intervalo, a retomada não duplica a linha.
  */
-function appendLeadIdempotente(name, email, whatsapp, sigla, teste, resultado, pontuacoes, submissionId, fingerprint) {
+function appendLeadIdempotente(name, email, whatsapp, sigla, teste, resultado, pontuacoes, submissionId, fingerprint, attribution) {
   const sheet = getSheet();
   const submissionIdColumn = LEAD_SHEET_HEADERS.indexOf("Submission ID") + 1;
   const lastRow = sheet.getLastRow();
@@ -1366,6 +1367,7 @@ function appendLeadIdempotente(name, email, whatsapp, sigla, teste, resultado, p
     sanitizeForSheet(teste),
     sanitizeForSheet(JSON.stringify(resultado)),
     sanitizeForSheet(JSON.stringify(pontuacoes)),
+    sanitizeForSheet(JSON.stringify(attribution || {})),
     sanitizeForSheet(submissionId),
     sanitizeForSheet(fingerprint)
   ]);
