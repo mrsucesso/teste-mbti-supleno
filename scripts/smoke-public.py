@@ -14,6 +14,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+JAVASCRIPT_CONTENT_TYPES = ("text/javascript", "application/javascript")
 
 
 def load_builder():
@@ -37,14 +38,16 @@ class Fallback404Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def check(url: str, expected_status: int, content_type: str) -> None:
+def check(url: str, expected_status: int, content_type) -> None:
     try:
         response = urllib.request.urlopen(url)
     except urllib.error.HTTPError as error:
         response = error
     body = response.read().decode("utf-8")
     assert response.status == expected_status, (url, response.status)
-    assert response.headers.get_content_type() == content_type, (url, response.headers.get_content_type())
+    actual_content_type = response.headers.get_content_type()
+    allowed_content_types = (content_type,) if isinstance(content_type, str) else content_type
+    assert actual_content_type in allowed_content_types, (url, actual_content_type)
     if expected_status == 404:
         assert "Página não encontrada" in body, url
 
@@ -65,7 +68,7 @@ def main() -> int:
                                        ("/privacidade/", "text/html"),
                                        ("/metodologia/", "text/html"),
                                        ("/assets/style.css", "text/css"),
-                                       ("/assets/nav.js", "application/javascript"),
+                                       ("/assets/nav.js", JAVASCRIPT_CONTENT_TYPES),
                                        ("/robots.txt", "text/plain")):
                 check(base + path, 200, content_type)
             check(base + "/rota-inexistente", 404, "text/html")
