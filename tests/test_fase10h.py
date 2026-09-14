@@ -23,7 +23,7 @@ class TestFase10H(unittest.TestCase):
             "product": "tipos",
             "person": {"name": "Pessoa", "email": "pessoa@example.invalid"},
             "result": {"code": "INTJ", "gender": "M"},
-            "scores": {"E": 7, "I": 0, "S": 7, "N": 0, "T": 7, "F": 0, "J": 7, "P": 0},
+            "scores": {"E": 0, "I": 7, "S": 0, "N": 7, "T": 7, "F": 0, "J": 7, "P": 0},
             "consent": {"granted": True, "captured_at": "2026-09-13T15:00:00Z", "purpose": "resultado_e_sequencia_supleno", "version": "1"},
             "attribution": {"origin": "local"},
             "opt_out": False,
@@ -40,7 +40,7 @@ class TestFase10H(unittest.TestCase):
         self.assertEqual(module.captura(store, request)["status"], "accepted")
         reordered = {**request, "result": {"code": "INTJ", "gender": "M"}, "consent": dict(request["consent"]), "submission_id": "synthetic"}
         self.assertEqual(module.captura(store, reordered)["status"], "duplicate")
-        changed = {**request, "result": {"code": "ENFP"}}
+        changed = {**request, "person": {"name": "Outra Pessoa", "email": "pessoa@example.invalid"}}
         conflict = module.captura(store, changed)
         self.assertEqual(conflict["status"], "rejected")
         self.assertEqual(conflict["error"]["code"], "duplicate_payload_conflict")
@@ -101,9 +101,89 @@ if (!api.salvar('tipos', {respostas: ['E'], progresso: 1, ordem: [0], resultado:
                 request[section] = values
             self.assertFalse(module.validar_request(request), overrides)
 
-        empty_result = self.valid_request()
-        empty_result["result"] = {}
-        self.assertTrue(module.validar_request(empty_result))
+        for missing in ("opt_out", "result", "scores"):
+            malformed = self.valid_request()
+            del malformed[missing]
+            self.assertFalse(module.validar_request(malformed), missing)
+
+    def test_schema_closes_and_discriminates_result_and_scores_by_product(self):
+        schema = json.loads((ROOT / "docs/integracao-v1/schemas/captura.request.schema.json").read_text())
+        self.assertIn("opt_out", schema["required"])
+        self.assertFalse(schema["additionalProperties"])
+        variants = {branch["if"]["properties"]["product"]["const"]: branch["then"] for branch in schema["allOf"]}
+        self.assertEqual(set(variants), {"tipos", "estilos", "tracos"})
+        for product, expected_result, expected_scores in (
+            ("tipos", {"code", "gender"}, {"E", "I", "S", "N", "T", "F", "J", "P"}),
+            ("estilos", {"code"}, {"D", "I", "S", "C"}),
+            ("tracos", {"SO", "AN", "OM", "TE", "CO"}, {"SO", "AN", "OM", "TE", "CO"}),
+        ):
+            for field, expected in (("result", expected_result), ("scores", expected_scores)):
+                definition = variants[product]["properties"][field]
+                self.assertFalse(definition["additionalProperties"], (product, field))
+                self.assertEqual(set(definition["required"]), expected, (product, field))
+        tracos_item = schema["$defs"]["traitScore"]
+        self.assertFalse(tracos_item["additionalProperties"])
+        self.assertEqual(set(tracos_item["required"]), {"sum", "percent", "faixa"})
+
+    def test_simulator_matches_receiver_semantics_for_all_products(self):
+        spec = importlib.util.spec_from_file_location("simulador", SIMULATOR)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        valid = {
+            "tipos": self.valid_request(),
+            "estilos": self.valid_request(
+                product="estilos", result={"code": "D"},
+                scores={"D": 10, "I": 5, "S": 5, "C": 4},
+            ),
+            "tracos": self.valid_request(
+                product="tracos",
+                result={key: {"sum": 15, "percent": 50, "faixa": "medio"} for key in ("SO", "AN", "OM", "TE", "CO")},
+                scores={key: {"sum": 15, "percent": 50, "faixa": "medio"} for key in ("SO", "AN", "OM", "TE", "CO")},
+            ),
+        }
+        for product, request in valid.items():
+            self.assertTrue(module.validar_request(request), product)
+
+        negative = []
+        for product, request in valid.items():
+            incomplete = json.loads(json.dumps(request))
+            incomplete["scores"].pop(next(iter(incomplete["scores"])))
+            negative.append((product + " incomplete", incomplete))
+            extra = json.loads(json.dumps(request))
+            extra["result"]["extra"] = True
+            negative.append((product + " result extra", extra))
+        tipos_sum = json.loads(json.dumps(valid["tipos"]))
+        tipos_sum["scores"]["E"] = 6
+        negative.append(("tipos soma", tipos_sum))
+        tipos_result = json.loads(json.dumps(valid["tipos"]))
+        tipos_result["result"]["code"] = "ENFP"
+        negative.append(("tipos resultado", tipos_result))
+        estilos_sum = json.loads(json.dumps(valid["estilos"]))
+        estilos_sum["scores"]["D"] = 9
+        negative.append(("estilos soma", estilos_sum))
+        estilos_result = json.loads(json.dumps(valid["estilos"]))
+        estilos_result["result"]["code"] = "I"
+        negative.append(("estilos resultado", estilos_result))
+        tracos_extra = json.loads(json.dumps(valid["tracos"]))
+        tracos_extra["scores"]["SO"]["extra"] = True
+        negative.append(("tracos interno extra", tracos_extra))
+        tracos_result = json.loads(json.dumps(valid["tracos"]))
+        tracos_result["result"]["SO"]["percent"] = 51
+        negative.append(("tracos resultado", tracos_result))
+        for label, request in negative:
+            self.assertFalse(module.validar_request(request), label)
+
+    def test_simulator_duplicate_reports_effective_sequence_state(self):
+        spec = importlib.util.spec_from_file_location("simulador", SIMULATOR)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        request = self.valid_request()
+        store = {}
+        module.captura(store, request)
+        for state in ("pending", "sending", "sent", "uncertain", "completed"):
+            store[request["submission_id"]]["sequence_state"] = state
+            duplicate = module.captura(store, request)
+            self.assertEqual(duplicate["sequence_state"], state)
 
     def test_frontends_use_explicit_v1_adapter_at_capture_boundary(self):
         adapter = (ROOT / "assets/integracao-v1-adapter.js").read_text(encoding="utf-8")

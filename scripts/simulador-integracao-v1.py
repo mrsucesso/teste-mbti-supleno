@@ -7,13 +7,13 @@ não abre socket e não conhece URL de transporte.
 import json
 import hashlib
 import re
+import unicodedata
 from datetime import datetime, timezone
 
 CONTRACT = "supleno.integracao.v1"
 SEQUENCE = ["imediato", "d1", "d3", "d5", "d7"]
 PRODUCTS = {"tipos", "estilos", "tracos"}
-REQUIRED = {"contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "access_token"}
-ROOT_FIELDS = REQUIRED | {"opt_out"}
+ROOT_FIELDS = {"contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "opt_out", "access_token"}
 ORIGIN_PII = re.compile(r"(?:@|\b\d{8,}\b)")
 
 
@@ -39,29 +39,77 @@ def _valid_text(value, maximum):
 
 
 def _valid_email(value):
-    return _valid_text(value, 254) and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value)
+    return (_valid_text(value, 254) and
+            re.fullmatch(r"[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}", value) is not None)
+
+
+def _valid_name(value):
+    return (_valid_text(value, 100) and bool(value) and
+            all(char.isalpha() or unicodedata.category(char).startswith("M") or char in " '.-" for char in value))
+
+
+def _integer_in_range(value, minimum, maximum):
+    return isinstance(value, int) and not isinstance(value, bool) and minimum <= value <= maximum
+
+
+def _valid_trait(value):
+    if not isinstance(value, dict) or set(value) != {"sum", "percent", "faixa"}:
+        return False
+    if not _integer_in_range(value["sum"], 5, 25):
+        return False
+    expected_percent = round(((value["sum"] - 5) / 20) * 100)
+    expected_range = "baixo" if expected_percent < 34 else "medio" if expected_percent < 67 else "alto"
+    return value["percent"] == expected_percent and value["faixa"] == expected_range
+
+
+def _valid_product_data(product, result, scores):
+    if not isinstance(result, dict) or not isinstance(scores, dict):
+        return False
+    if product == "tipos":
+        keys = {"E", "I", "S", "N", "T", "F", "J", "P"}
+        if set(result) != {"code", "gender"} or set(scores) != keys:
+            return False
+        if result["gender"] not in {"M", "F"} or not all(_integer_in_range(scores[key], 0, 7) for key in keys):
+            return False
+        if not all(scores[a] + scores[b] == 7 for a, b in (("E", "I"), ("S", "N"), ("T", "F"), ("J", "P"))):
+            return False
+        expected = (("E" if scores["E"] >= scores["I"] else "I") +
+                    ("S" if scores["S"] >= scores["N"] else "N") +
+                    ("T" if scores["T"] >= scores["F"] else "F") +
+                    ("J" if scores["J"] >= scores["P"] else "P"))
+        return result["code"] == expected
+    if product == "estilos":
+        keys = ("D", "I", "S", "C")
+        if set(result) != {"code"} or set(scores) != set(keys):
+            return False
+        if not all(_integer_in_range(scores[key], 0, 24) for key in keys) or sum(scores.values()) != 24:
+            return False
+        expected = max(keys, key=lambda key: scores[key])
+        return result["code"] == expected
+    keys = {"SO", "AN", "OM", "TE", "CO"}
+    return (set(result) == keys and set(scores) == keys and
+            all(_valid_trait(scores[key]) and result[key] == scores[key] for key in keys))
 
 
 def validar_request(request):
-    if not isinstance(request, dict) or not REQUIRED.issubset(request) or set(request) - ROOT_FIELDS:
+    if not isinstance(request, dict) or set(request) != ROOT_FIELDS:
         return False
     if request.get("contract") != CONTRACT or not isinstance(request.get("submission_id"), str) or not 1 <= len(request["submission_id"]) <= 128:
         return False
-    if request.get("product") not in PRODUCTS or not isinstance(request.get("result"), dict):
+    if request.get("product") not in PRODUCTS:
         return False
     if not isinstance(request.get("access_token"), str) or not 1 <= len(request["access_token"]) <= 256:
         return False
-    if not isinstance(request["scores"], dict):
-        return False
     person = request.get("person")
     if (not isinstance(person, dict) or set(person) - {"name", "email", "whatsapp"}
-            or not _valid_text(person.get("name"), 160) or not person["name"]
+            or not {"name", "email"}.issubset(person) or not _valid_name(person.get("name"))
             or not _valid_email(person.get("email"))):
         return False
-    if "whatsapp" in person and not _valid_text(person["whatsapp"], 32):
+    if ("whatsapp" in person and
+            (not _valid_text(person["whatsapp"], 20) or re.fullmatch(r"[0-9 ()+\-]*", person["whatsapp"]) is None)):
         return False
     consent = request.get("consent")
-    if not isinstance(consent, dict) or set(consent) != {"granted", "captured_at", "purpose", "version"} or consent.get("granted") is not True or consent.get("purpose") != "resultado_e_sequencia_supleno" or not isinstance(consent.get("version"), str) or not consent["version"]:
+    if not isinstance(consent, dict) or set(consent) != {"granted", "captured_at", "purpose", "version"} or consent.get("granted") is not True or consent.get("purpose") != "resultado_e_sequencia_supleno" or not _valid_text(consent.get("version"), 32) or not consent["version"]:
         return False
     try:
         captured_at = datetime.fromisoformat(consent["captured_at"].replace("Z", "+00:00"))
@@ -77,9 +125,9 @@ def validar_request(request):
             return False
     if "origin" in attribution and not _valid_origin(attribution["origin"]):
         return False
-    if "opt_out" in request and request["opt_out"] is not False:
+    if request["opt_out"] is not False:
         return False
-    return True
+    return _valid_product_data(request["product"], request["result"], request["scores"])
 
 
 def fingerprint(request):
@@ -100,7 +148,8 @@ def captura(store, request):
             return {"contract": CONTRACT, "status": "suppressed", "submission_id": submission_id, "sequence_state": "opt_out"}
         if store[submission_id]["fingerprint"] != current_fingerprint:
             return {"contract": CONTRACT, "status": "rejected", "submission_id": submission_id, "error": {"code": "duplicate_payload_conflict", "message": "O submission_id já foi usado com outro conteúdo."}}
-        return {"contract": CONTRACT, "status": "duplicate", "submission_id": submission_id, "sequence_state": "pending"}
+        return {"contract": CONTRACT, "status": "duplicate", "submission_id": submission_id,
+                "sequence_state": store[submission_id]["sequence_state"]}
     store[submission_id] = {"request": request, "fingerprint": current_fingerprint, "sequence_state": "pending", "opt_out": False}
     return {"contract": CONTRACT, "status": "accepted", "submission_id": request["submission_id"], "sequence_state": "pending"}
 
@@ -114,7 +163,7 @@ def main():
         "product": "tipos",
         "person": {"name": "Pessoa Sintética", "email": "sintetico@example.invalid"},
         "result": {"code": "INTJ", "gender": "F"},
-        "scores": {"E": 2, "I": 5},
+        "scores": {"E": 2, "I": 5, "S": 3, "N": 4, "T": 4, "F": 3, "J": 5, "P": 2},
         "consent": {"granted": True, "captured_at": agora, "purpose": "resultado_e_sequencia_supleno", "version": "1"},
         "attribution": {"utm_source": "sintetico", "utm_medium": "teste", "utm_campaign": "fase-10e", "origin": "local"},
         "opt_out": False,

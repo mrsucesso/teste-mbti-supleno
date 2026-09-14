@@ -307,6 +307,21 @@ def lead_payload(submission_id: str = "sub-1", email: str = "lead@example.com", 
     }
 
 
+def v1_payload(submission_id: str = "sub-v1") -> dict:
+    return {
+        "contract": "supleno.integracao.v1",
+        "submission_id": submission_id,
+        "product": "tipos",
+        "person": {"name": "Pessoa Teste", "email": "v1@example.com", "whatsapp": ""},
+        "result": {"code": "INTJ", "gender": "F"},
+        "scores": {"E": 2, "I": 5, "S": 3, "N": 4, "T": 4, "F": 3, "J": 5, "P": 2},
+        "consent": {"granted": True, "captured_at": "2026-09-13T15:00:00Z", "purpose": "resultado_e_sequencia_supleno", "version": "1"},
+        "attribution": {"origin": "local"},
+        "opt_out": False,
+        "access_token": DEFAULT_ACCESS_TOKEN,
+    }
+
+
 def outbox_entries(result: dict) -> list[dict]:
     """Converte `result["outboxRows"]` (cabeçalho + linhas de dados, tal como
     lido diretamente da aba "Outbox" pelo stub de Sheets) em uma lista de
@@ -1272,9 +1287,104 @@ class TestIdempotencyLeaseReconciliation(unittest.TestCase):
         self.assertEqual(json.loads(result["r2"]), {"ok": True, "duplicate": True})
         self.assertEqual(len(result["sheetRows"]), 2)
 
+    def test_v1_duplicate_returns_effective_outbox_state(self):
+        payload = v1_payload("sub-v1-state")
+        [pending, sent] = run_node(
+            """
+            const payload = %(payload)s;
+            const first = doPost({ postData: { contents: JSON.stringify(payload) } });
+            const duplicatePending = doPost({ postData: { contents: JSON.stringify(payload) } });
+            dumpState({ first: first.getContent(), duplicate: duplicatePending.getContent() });
+            processarOutbox();
+            const duplicateSent = doPost({ postData: { contents: JSON.stringify(payload) } });
+            dumpState({ duplicate: duplicateSent.getContent() });
+            """ % {"payload": json.dumps(payload)}
+        )
+        self.assertEqual(json.loads(pending["duplicate"])["sequence_state"], "pending")
+        self.assertEqual(json.loads(sent["duplicate"])["sequence_state"], "sent")
+
+    def test_v1_duplicate_reports_uncertain_after_ambiguous_send_failure(self):
+        payload = v1_payload("sub-v1-uncertain")
+        [result] = run_node(
+            """
+            const payload = %(payload)s;
+            doPost({ postData: { contents: JSON.stringify(payload) } });
+            processarOutbox();
+            const duplicate = doPost({ postData: { contents: JSON.stringify(payload) } });
+            dumpState({ duplicate: duplicate.getContent() });
+            """ % {"payload": json.dumps(payload)},
+            mail_should_throw=True,
+        )
+        self.assertEqual(json.loads(result["duplicate"])["sequence_state"], "uncertain")
+
+    def test_v1_tracos_rejects_extra_nested_score_property(self):
+        dimensions = {key: {"sum": 15, "percent": 50, "faixa": "medio"} for key in ("SO", "AN", "OM", "TE", "CO")}
+        payload = v1_payload("sub-v1-tracos-extra")
+        payload.update({"product": "tracos", "result": json.loads(json.dumps(dimensions)), "scores": dimensions})
+        payload["scores"]["SO"]["extra"] = True
+        [result] = run_node(
+            "dumpState({ response: doPost({ postData: { contents: JSON.stringify(%s) } }).getContent() });"
+            % json.dumps(payload)
+        )
+        self.assertEqual(json.loads(result["response"])["error"]["code"], "invalid_request")
+
 
 class TestValidationAndLockStillEnforced(unittest.TestCase):
     """Preservação das proteções existentes: validação dos três produtos e LockService."""
+
+    def test_v1_rejects_extra_properties_missing_optout_and_invalid_scalar_types(self):
+        base = v1_payload("sub-v1-invalid")
+        cases = []
+        for path in ("root", "person", "result", "consent", "attribution"):
+            payload = json.loads(json.dumps(base))
+            target = payload if path == "root" else payload[path]
+            target["extra"] = True
+            cases.append(payload)
+        for mutation in ("missing_optout", "numeric_submission", "numeric_whatsapp", "invalid_captured_at", "long_version"):
+            payload = json.loads(json.dumps(base))
+            if mutation == "missing_optout":
+                del payload["opt_out"]
+            elif mutation == "numeric_submission":
+                payload["submission_id"] = 123
+            elif mutation == "numeric_whatsapp":
+                payload["person"]["whatsapp"] = 27
+            elif mutation == "invalid_captured_at":
+                payload["consent"]["captured_at"] = "não-é-data"
+            else:
+                payload["consent"]["version"] = "x" * 33
+            cases.append(payload)
+        [result] = run_node(
+            "const payloads = %s; dumpState({ responses: payloads.map(p => JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent())) });"
+            % json.dumps(cases)
+        )
+        self.assertTrue(all(response["error"]["code"] == "invalid_request" for response in result["responses"]))
+
+    def test_v1_rejects_incomplete_or_incoherent_scores_for_every_product(self):
+        tipos = v1_payload("sub-v1-tipos-invalid")
+        estilos = v1_payload("sub-v1-estilos-invalid")
+        estilos.update({"product": "estilos", "result": {"code": "D"}, "scores": {"D": 10, "I": 5, "S": 5, "C": 4}})
+        dimensions = {key: {"sum": 15, "percent": 50, "faixa": "medio"} for key in ("SO", "AN", "OM", "TE", "CO")}
+        tracos = v1_payload("sub-v1-tracos-invalid")
+        tracos.update({"product": "tracos", "result": json.loads(json.dumps(dimensions)), "scores": dimensions})
+        cases = []
+        for payload in (tipos, estilos, tracos):
+            incomplete = json.loads(json.dumps(payload))
+            incomplete["scores"].pop(next(iter(incomplete["scores"])))
+            cases.append(incomplete)
+        tipos_bad = json.loads(json.dumps(tipos))
+        tipos_bad["scores"]["E"] = 3
+        cases.append(tipos_bad)
+        estilos_bad = json.loads(json.dumps(estilos))
+        estilos_bad["result"]["code"] = "I"
+        cases.append(estilos_bad)
+        tracos_bad = json.loads(json.dumps(tracos))
+        tracos_bad["scores"]["SO"]["percent"] = 51
+        cases.append(tracos_bad)
+        [result] = run_node(
+            "const payloads = %s; dumpState({ responses: payloads.map(p => JSON.parse(doPost({ postData: { contents: JSON.stringify(p) } }).getContent())) });"
+            % json.dumps(cases)
+        )
+        self.assertTrue(all(response["error"]["code"] == "invalid_request" for response in result["responses"]))
 
     def test_all_three_products_still_processed_under_lock(self):
         body = extract_function_body(CODE_GS_TEXT, "processSubmissionAtomically")

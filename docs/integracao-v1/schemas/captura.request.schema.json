@@ -5,7 +5,7 @@
   "version": "1.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "access_token"],
+  "required": ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "opt_out", "access_token"],
   "properties": {
     "contract": {"const": "supleno.integracao.v1"},
     "submission_id": {"type": "string", "minLength": 1, "maxLength": 128},
@@ -13,9 +13,9 @@
     "person": {
       "type": "object", "additionalProperties": false, "required": ["name", "email"],
       "properties": {
-        "name": {"type": "string", "minLength": 1, "maxLength": 160},
+        "name": {"type": "string", "minLength": 1, "maxLength": 100},
         "email": {"type": "string", "format": "email", "maxLength": 254},
-        "whatsapp": {"type": "string", "maxLength": 32}
+        "whatsapp": {"type": "string", "maxLength": 20, "pattern": "^[0-9 ()+\\-]*$"}
       }
     },
     "result": {"type": "object"},
@@ -40,5 +40,70 @@
     },
     "opt_out": {"type": "boolean", "const": false},
     "access_token": {"type": "string", "minLength": 1, "maxLength": 256}
-  }
+  },
+  "$defs": {
+    "traitScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sum", "percent", "faixa"],
+      "properties": {
+        "sum": {"type": "integer", "minimum": 5, "maximum": 25},
+        "percent": {"type": "integer", "minimum": 0, "maximum": 100},
+        "faixa": {"enum": ["baixo", "medio", "alto"]}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"product": {"const": "tipos"}}, "required": ["product"]},
+      "then": {"properties": {
+        "result": {
+          "type": "object", "additionalProperties": false, "required": ["code", "gender"],
+          "properties": {
+            "code": {"enum": ["INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP", "ENFJ", "ENFP", "ISTJ", "ISFJ", "ESTJ", "ESFJ", "ISTP", "ISFP", "ESTP", "ESFP"]},
+            "gender": {"enum": ["M", "F"]}
+          }
+        },
+        "scores": {
+          "type": "object", "additionalProperties": false,
+          "required": ["E", "I", "S", "N", "T", "F", "J", "P"],
+          "properties": {
+            "E": {"type": "integer", "minimum": 0, "maximum": 7}, "I": {"type": "integer", "minimum": 0, "maximum": 7},
+            "S": {"type": "integer", "minimum": 0, "maximum": 7}, "N": {"type": "integer", "minimum": 0, "maximum": 7},
+            "T": {"type": "integer", "minimum": 0, "maximum": 7}, "F": {"type": "integer", "minimum": 0, "maximum": 7},
+            "J": {"type": "integer", "minimum": 0, "maximum": 7}, "P": {"type": "integer", "minimum": 0, "maximum": 7}
+          }
+        }
+      }}
+    },
+    {
+      "if": {"properties": {"product": {"const": "estilos"}}, "required": ["product"]},
+      "then": {"properties": {
+        "result": {
+          "type": "object", "additionalProperties": false, "required": ["code"],
+          "properties": {"code": {"enum": ["D", "I", "S", "C"]}}
+        },
+        "scores": {
+          "type": "object", "additionalProperties": false, "required": ["D", "I", "S", "C"],
+          "properties": {
+            "D": {"type": "integer", "minimum": 0, "maximum": 24}, "I": {"type": "integer", "minimum": 0, "maximum": 24},
+            "S": {"type": "integer", "minimum": 0, "maximum": 24}, "C": {"type": "integer", "minimum": 0, "maximum": 24}
+          }
+        }
+      }}
+    },
+    {
+      "if": {"properties": {"product": {"const": "tracos"}}, "required": ["product"]},
+      "then": {"properties": {
+        "result": {
+          "type": "object", "additionalProperties": false, "required": ["SO", "AN", "OM", "TE", "CO"],
+          "properties": {"SO": {"$ref": "#/$defs/traitScore"}, "AN": {"$ref": "#/$defs/traitScore"}, "OM": {"$ref": "#/$defs/traitScore"}, "TE": {"$ref": "#/$defs/traitScore"}, "CO": {"$ref": "#/$defs/traitScore"}}
+        },
+        "scores": {
+          "type": "object", "additionalProperties": false, "required": ["SO", "AN", "OM", "TE", "CO"],
+          "properties": {"SO": {"$ref": "#/$defs/traitScore"}, "AN": {"$ref": "#/$defs/traitScore"}, "OM": {"$ref": "#/$defs/traitScore"}, "TE": {"$ref": "#/$defs/traitScore"}, "CO": {"$ref": "#/$defs/traitScore"}}
+        }
+      }}
+    }
+  ]
 }

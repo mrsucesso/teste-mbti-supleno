@@ -20,9 +20,9 @@
  *      do site (ver config.example.js), NUNCA direto no index.html versionado
  *      (e sempre que reimplantar, a URL pode mudar se você criar uma NOVA
  *      implantação em vez de atualizar a existente)
- *   7. (Opcional, recomendado antes de ir ao ar) defina o mesmo valor em
- *      ACCESS_TOKEN aqui embaixo e em CONFIG_TOKEN no config.js — reduz abuso
- *      casual. Veja "Antiabuso" no README para o racional completo.
+ *   7. (Obrigatório no contrato v1) defina o mesmo valor em ACCESS_TOKEN nas
+ *      Script Properties e em CONFIG_TOKEN no config.js — reduz abuso casual.
+ *      Veja "Antiabuso" no README para o racional completo.
  */
 
 // Se a planilha "Leads MBTI" NÃO estiver vinculada a este script
@@ -529,14 +529,25 @@ function doPost(e) {
 function normalizeV1Input(data) {
   if (data.contract !== "supleno.integracao.v1" || !data.submission_id || !data.person || !data.result || !data.scores || !data.consent || !data.attribution || data.opt_out !== false) return null;
   if (!hasOnlyKeys(data, ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "opt_out", "access_token"])) return null;
+  if (typeof data.submission_id !== "string" || data.submission_id.length > 128 ||
+      typeof data.access_token !== "string" || !data.access_token || data.access_token.length > 256 ||
+      typeof data.person.name !== "string" || typeof data.person.email !== "string" ||
+      (Object.prototype.hasOwnProperty.call(data.person, "whatsapp") && typeof data.person.whatsapp !== "string")) return null;
   if (!hasOnlyKeys(data.person, ["name", "email", "whatsapp"]) ||
       !hasOnlyKeys(data.result, data.product === "tipos" ? ["code", "gender"] : data.product === "estilos" ? ["code"] : ["SO", "AN", "OM", "TE", "CO"]) ||
       !hasOnlyKeys(data.consent, ["granted", "captured_at", "purpose", "version"]) ||
       !hasOnlyKeys(data.attribution, ["utm_source", "utm_medium", "utm_campaign", "origin"])) return null;
   if (["tipos", "estilos", "tracos"].indexOf(data.product) === -1) return null;
-  if (data.consent.granted !== true || typeof data.consent.captured_at !== "string" || data.consent.purpose !== "resultado_e_sequencia_supleno" || typeof data.consent.version !== "string") return null;
+  if (data.product === "tracos" && !["SO", "AN", "OM", "TE", "CO"].every(key =>
+      hasOnlyKeys(data.result[key], ["sum", "percent", "faixa"]) &&
+      hasOnlyKeys(data.scores[key], ["sum", "percent", "faixa"]))) return null;
+  if (data.consent.granted !== true || typeof data.consent.captured_at !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(data.consent.captured_at) ||
+      isNaN(Date.parse(data.consent.captured_at)) || data.consent.purpose !== "resultado_e_sequencia_supleno" ||
+      typeof data.consent.version !== "string" || !data.consent.version || data.consent.version.length > 32) return null;
   const result = data.product === "estilos" ? (data.result.code || "") : data.result;
   return { name: data.person.name, email: data.person.email, whatsapp: data.person.whatsapp || "",
+    code: data.product === "tipos" ? data.result.code : "", gender: data.product === "tipos" ? data.result.gender : "",
     teste: data.product, resultado: result, pontuacoes: data.scores, consentimento: true,
     submission_id: data.submission_id, website: "", token: data.access_token || "",
     attribution: normalizeAttribution(data.attribution) };
@@ -656,7 +667,7 @@ function validateScores(teste, scores) {
     const expectedPercent = value && Number.isInteger(value.sum)
       ? Math.round(((value.sum - 5) / 20) * 100) : -1;
     const expectedRange = expectedPercent < 34 ? "baixo" : expectedPercent < 67 ? "medio" : "alto";
-    return value && typeof value === "object" &&
+    return value && typeof value === "object" && hasOnlyKeys(value, ["sum", "percent", "faixa"]) &&
       Number.isInteger(value.sum) && value.sum >= 5 && value.sum <= 25 &&
       value.percent === expectedPercent && value.faixa === expectedRange;
   });
@@ -1191,14 +1202,14 @@ function processSubmissionAtomically(validated, submissionId, fingerprint) {
         return validated.v1 ? v1RejectedResponse(submissionId, "duplicate_payload_conflict") : errorResponse();
       }
       if (existing.status === "done") {
-        return validated.v1 ? v1Response(submissionId, "duplicate", "pending") : jsonResponse({ ok: true, duplicate: true });
+        return validated.v1 ? v1Response(submissionId, "duplicate", sequenceStateFromOutbox(submissionId, "pending")) : jsonResponse({ ok: true, duplicate: true });
       }
       const leaseUntil = existing.lease_until ? new Date(existing.lease_until) : null;
       if (leaseUntil && leaseUntil >= now) {
         // Lease ainda válida: outra requisição concorrente/retentativa está
         // em andamento. Não reprocessa para não duplicar; o cliente deve
         // tentar novamente mais tarde.
-        return validated.v1 ? v1Response(submissionId, "duplicate", "pending") : jsonResponse({ ok: true, duplicate: true, processing: true });
+        return validated.v1 ? v1Response(submissionId, "duplicate", sequenceStateFromOutbox(submissionId, "pending")) : jsonResponse({ ok: true, duplicate: true, processing: true });
       }
       if (estaOptOut(validated.email)) {
         existing.status = "done";
@@ -1230,6 +1241,14 @@ function processSubmissionAtomically(validated, submissionId, fingerprint) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function sequenceStateFromOutbox(submissionId, fallback) {
+  const entry = findOutboxRowBySubmissionId(getOutboxSheet(), submissionId);
+  if (!entry) return fallback;
+  if (entry.state === "cancelled") return "opt_out";
+  return ["pending", "sending", "sent", "uncertain"].indexOf(entry.state) !== -1
+    ? entry.state : fallback;
 }
 
 function concluirProcessamento(validated, submissionId, fingerprint, state, props, idempotencyKey) {
