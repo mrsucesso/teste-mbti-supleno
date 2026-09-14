@@ -26,7 +26,7 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 - `/estilos/` — teste educativo de 24 perguntas, com resultado básico imediato e captura opcional posterior
 - `/tracos/` — teste educativo de 25 afirmações, cinco dimensões contínuas, resultado imediato e captura opcional posterior
 - `/mapa/` — combinação local dos três resultados, com links para concluir o que falta e controles para apagar, imprimir e compartilhar
-- `/privacidade/` — transparência sobre modo seguro, dados, consentimento, opt-out e retenção a definir
+- `/privacidade/` — transparência sobre modo seguro, dados, consentimento, opt-out e retenção máxima de 180 dias
 - `/metodologia/` — metodologia e limitações dos três testes, sem alegação clínica ou científica indevida
 - `assets/style.css` — estilo compartilhado
 - `assets/nav.js` — comportamento do menu responsivo compartilhado
@@ -53,7 +53,7 @@ O builder remove o diretório de saída antes de copiar a allowlist e grava `man
 1. Implantar uma cópia de `apps-script/Code.gs` como backend compartilhado. O mesmo endpoint valida os contratos distintos de Tipos, Estilos e Traços.
 2. Informar essa URL publicada em `WEBHOOK_URL` no `config.js` local de cada produto (a partir de seu `config.example.js`). Sem URL, todos permanecem no modo seguro e não transmitem dados.
 3. Confirmar `CTA_URL` e `SITE_BASE_URL` no frontend e no backend.
-4. Configurar `OPTOUT_SECRET` em Script Properties e o gatilho de tempo de `processarOutbox` (ver "Opt-out" e "Fila de envio (outbox)"). Sem os dois, nenhum e-mail de resultado é enviado.
+4. Configurar `OPTOUT_SECRET` em Script Properties e o gatilho de tempo de `processarOutbox` (ver "Opt-out", "Fila de envio (outbox)" e "Retenção"). Sem os dois, nenhum e-mail de resultado é enviado.
 5. Criar as imagens e substituir todos os espaços reservados.
 6. Configurar origem, UTM, consentimento e métricas.
 7. Executar `python3 scripts/validate-content.py`.

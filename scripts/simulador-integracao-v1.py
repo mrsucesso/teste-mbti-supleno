@@ -12,8 +12,9 @@ from datetime import datetime, timezone
 
 CONTRACT = "supleno.integracao.v1"
 SEQUENCE = ["imediato", "d1", "d3", "d5", "d7"]
+SEQUENCE_STATES = {"pending", "sending", "sent", "uncertain", "opt_out"}
 PRODUCTS = {"tipos", "estilos", "tracos"}
-ROOT_FIELDS = {"contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "opt_out", "access_token"}
+ROOT_FIELDS = {"contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "honeypot", "opt_out", "access_token"}
 ORIGIN_PII = re.compile(r"(?:@|\b\d{8,}\b)")
 
 
@@ -40,7 +41,7 @@ def _valid_text(value, maximum):
 
 def _valid_email(value):
     return (_valid_text(value, 254) and
-            re.fullmatch(r"[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}", value) is not None)
+            re.fullmatch(r"(?=.{1,254}$)[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}", value) is not None)
 
 
 def _valid_name(value):
@@ -100,6 +101,8 @@ def validar_request(request):
         return False
     if not isinstance(request.get("access_token"), str) or not 1 <= len(request["access_token"]) <= 256:
         return False
+    if not _valid_text(request.get("honeypot"), 256):
+        return False
     person = request.get("person")
     if (not isinstance(person, dict) or set(person) - {"name", "email", "whatsapp"}
             or not {"name", "email"}.issubset(person) or not _valid_name(person.get("name"))
@@ -148,8 +151,11 @@ def captura(store, request):
             return {"contract": CONTRACT, "status": "suppressed", "submission_id": submission_id, "sequence_state": "opt_out"}
         if store[submission_id]["fingerprint"] != current_fingerprint:
             return {"contract": CONTRACT, "status": "rejected", "submission_id": submission_id, "error": {"code": "duplicate_payload_conflict", "message": "O submission_id já foi usado com outro conteúdo."}}
+        state = store[submission_id]["sequence_state"]
+        if state not in SEQUENCE_STATES:
+            return _error("invalid_sequence_state", submission_id)
         return {"contract": CONTRACT, "status": "duplicate", "submission_id": submission_id,
-                "sequence_state": store[submission_id]["sequence_state"]}
+                "sequence_state": state}
     store[submission_id] = {"request": request, "fingerprint": current_fingerprint, "sequence_state": "pending", "opt_out": False}
     return {"contract": CONTRACT, "status": "accepted", "submission_id": request["submission_id"], "sequence_state": "pending"}
 
@@ -166,6 +172,7 @@ def main():
         "scores": {"E": 2, "I": 5, "S": 3, "N": 4, "T": 4, "F": 3, "J": 5, "P": 2},
         "consent": {"granted": True, "captured_at": agora, "purpose": "resultado_e_sequencia_supleno", "version": "1"},
         "attribution": {"utm_source": "sintetico", "utm_medium": "teste", "utm_campaign": "fase-10e", "origin": "local"},
+        "honeypot": "",
         "opt_out": False,
     }
     store = {}

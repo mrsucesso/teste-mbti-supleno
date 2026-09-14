@@ -11,7 +11,7 @@
     "status": {"enum": ["accepted", "duplicate", "suppressed", "rejected", "error"]},
     "submission_id": {"type": "string", "minLength": 1, "maxLength": 128},
     "error": {"type": "object", "additionalProperties": false, "required": ["code", "message"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}}},
-    "sequence_state": {"enum": ["pending", "sending", "sent", "uncertain", "completed", "opt_out"]},
+    "sequence_state": {"enum": ["pending", "sending", "sent", "uncertain", "opt_out"]},
     "retryable": {"type": "boolean"}
   }
 }

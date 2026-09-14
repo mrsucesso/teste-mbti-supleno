@@ -22,7 +22,11 @@ UTMs (`utm_source`, `utm_medium`, `utm_campaign`) e `origin` são atribuição o
 
 ## Estados da sequência e erros
 
-Estados de intenção: `pending` → `sending` → `sent`; falha ou lease vencida vira `uncertain` e exige reconciliação explícita. O encerramento normal é `completed`; opt-out termina em `opt_out`. Não existe reenvio automático às cegas.
+Estados canônicos da intenção: `pending` → `sending` → `sent`; falha ou lease vencida vira `uncertain` e exige reconciliação explícita. Opt-out termina em `opt_out`. Não existe `completed` nem reenvio automático às cegas: schema, simulador e Apps Script expõem exatamente estes cinco estados.
+
+## Retenção verificável
+
+Leads e Outbox são purgados após 180 dias pela função `purgarDadosExpirados`, executada pelo gatilho de `processarOutbox`; a exclusão é feita por data e de baixo para cima. Vínculos de token de opt-out expiram em 180 dias e estados de idempotência concluídos também são removidos após 180 dias. O código não mantém payload de Outbox em `PropertiesService`: ali ficam apenas cursor, supressão por hash e estados temporários.
 
 Códigos mínimos de erro: `invalid_request`, `consent_required`, `duplicate_payload_conflict`, `suppressed`, `temporary_failure` e `configuration_blocked`. A mensagem externa é curta e não revela stack trace, segredo ou PII. `temporary_failure` pode ser tentado novamente; conflito, consentimento e supressão não.
 

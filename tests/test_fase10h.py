@@ -26,6 +26,7 @@ class TestFase10H(unittest.TestCase):
             "scores": {"E": 0, "I": 7, "S": 0, "N": 7, "T": 7, "F": 0, "J": 7, "P": 0},
             "consent": {"granted": True, "captured_at": "2026-09-13T15:00:00Z", "purpose": "resultado_e_sequencia_supleno", "version": "1"},
             "attribution": {"origin": "local"},
+            "honeypot": "",
             "opt_out": False,
         }
         request.update(overrides)
@@ -180,10 +181,12 @@ if (!api.salvar('tipos', {respostas: ['E'], progresso: 1, ordem: [0], resultado:
         request = self.valid_request()
         store = {}
         module.captura(store, request)
-        for state in ("pending", "sending", "sent", "uncertain", "completed"):
+        for state in ("pending", "sending", "sent", "uncertain", "opt_out"):
             store[request["submission_id"]]["sequence_state"] = state
             duplicate = module.captura(store, request)
             self.assertEqual(duplicate["sequence_state"], state)
+        store[request["submission_id"]]["sequence_state"] = "completed"
+        self.assertEqual(module.captura(store, request)["error"]["code"], "invalid_sequence_state")
 
     def test_frontends_use_explicit_v1_adapter_at_capture_boundary(self):
         adapter = (ROOT / "assets/integracao-v1-adapter.js").read_text(encoding="utf-8")

@@ -95,10 +95,13 @@ const OUTBOX_BATCH_SIZE = 25;
 // contra uma aba enorme travar a confirmação de cancelamento.
 const OUTBOX_CANCEL_LIMIT = 500;
 const OUTBOX_CURSOR_ROW_PROPERTY = "OUTBOX_CURSOR_ROW";
+// Dados pessoais em Leads/Outbox e estados de idempotência ficam no máximo
+// 180 dias. O gatilho de processarOutbox executa a purga verificável.
+const PII_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
 
 const VALID_GENDERS = ["M", "F"];
 const NAME_PATTERN = /^[\p{L}\p{M} '.\-]{1,100}$/u;
-const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+const EMAIL_PATTERN = /^(?=.{1,254}$)[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
 const WHATSAPP_PATTERN = /^[0-9 ()+\-]{0,20}$/;
 
 /* ============================================================
@@ -527,8 +530,8 @@ function doPost(e) {
 }
 
 function normalizeV1Input(data) {
-  if (data.contract !== "supleno.integracao.v1" || !data.submission_id || !data.person || !data.result || !data.scores || !data.consent || !data.attribution || data.opt_out !== false) return null;
-  if (!hasOnlyKeys(data, ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "opt_out", "access_token"])) return null;
+  if (data.contract !== "supleno.integracao.v1" || !data.submission_id || !data.person || !data.result || !data.scores || !data.consent || !data.attribution || typeof data.honeypot !== "string" || data.honeypot.length > 256 || data.opt_out !== false) return null;
+  if (!hasOnlyKeys(data, ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "honeypot", "opt_out", "access_token"])) return null;
   if (typeof data.submission_id !== "string" || data.submission_id.length > 128 ||
       typeof data.access_token !== "string" || !data.access_token || data.access_token.length > 256 ||
       typeof data.person.name !== "string" || typeof data.person.email !== "string" ||
@@ -549,7 +552,7 @@ function normalizeV1Input(data) {
   return { name: data.person.name, email: data.person.email, whatsapp: data.person.whatsapp || "",
     code: data.product === "tipos" ? data.result.code : "", gender: data.product === "tipos" ? data.result.gender : "",
     teste: data.product, resultado: result, pontuacoes: data.scores, consentimento: true,
-    submission_id: data.submission_id, website: "", token: data.access_token || "",
+    submission_id: data.submission_id, website: data.honeypot, token: data.access_token || "",
     attribution: normalizeAttribution(data.attribution) };
 }
 
@@ -1056,6 +1059,37 @@ function cancelarOutboxPendentePorEmail(email) {
  * decisão humana explícita via outboxMarcarComoEnviadoManualmente ou
  * outboxMarcarComoPendenteManualmente.
  */
+/** Remove PII vencida de Leads, Outbox e propriedades temporárias. */
+function purgarDadosExpirados(agora) {
+  const limite = agora.getTime() - PII_RETENTION_MS;
+  const leads = getSheet();
+  const dataCol = LEAD_SHEET_HEADERS.indexOf("Data") + 1;
+  for (let row = leads.getLastRow(); row >= 2; row--) {
+    const valor = leads.getRange(row, dataCol).getValue();
+    if (valor && new Date(valor).getTime() < limite) leads.deleteRow(row);
+  }
+  const outbox = getOutboxSheet();
+  const enqueuedCol = OUTBOX_HEADERS.indexOf("enqueued_at") + 1;
+  for (let row = outbox.getLastRow(); row >= 2; row--) {
+    const valor = outbox.getRange(row, enqueuedCol).getValue();
+    if (valor && new Date(valor).getTime() < limite) outbox.deleteRow(row);
+  }
+  const props = PropertiesService.getScriptProperties();
+  Object.keys(props.getProperties()).forEach(function (key) {
+    const raw = props.getProperty(key);
+    if (key.indexOf("optout_token_") === 0) {
+      try {
+        if (new Date(JSON.parse(raw).expires_at).getTime() < agora.getTime()) props.deleteProperty(key);
+      } catch (_) { props.deleteProperty(key); }
+    } else if (key.indexOf("submission_") === 0) {
+      try {
+        const finished = JSON.parse(raw).finished_at;
+        if (finished && new Date(finished).getTime() < limite) props.deleteProperty(key);
+      } catch (_) { /* estado inválido é preservado para investigação */ }
+    }
+  });
+}
+
 function processarOutbox() {
   if (!OPTOUT_SECRET) {
     Logger.log("processarOutbox: OPTOUT_SECRET não configurado; envio bloqueado até a configuração ser concluída.");
@@ -1064,6 +1098,7 @@ function processarOutbox() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) return { processados: 0 };
   try {
+    purgarDadosExpirados(new Date());
     const sheet = getOutboxSheet();
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return { processados: 0 };

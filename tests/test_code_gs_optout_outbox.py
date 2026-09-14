@@ -317,6 +317,7 @@ def v1_payload(submission_id: str = "sub-v1") -> dict:
         "scores": {"E": 2, "I": 5, "S": 3, "N": 4, "T": 4, "F": 3, "J": 5, "P": 2},
         "consent": {"granted": True, "captured_at": "2026-09-13T15:00:00Z", "purpose": "resultado_e_sequencia_supleno", "version": "1"},
         "attribution": {"origin": "local"},
+        "honeypot": "",
         "opt_out": False,
         "access_token": DEFAULT_ACCESS_TOKEN,
     }

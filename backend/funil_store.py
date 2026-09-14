@@ -66,7 +66,7 @@ _NOME_PRODUTO = {
     "tracos": "Supleno Traços",
 }
 
-EMAIL_PATTERN = re.compile(r"^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$")
+EMAIL_PATTERN = re.compile(r"^(?=.{1,254}$)[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$")
 WHATSAPP_PATTERN = re.compile(r"^[0-9 ()+\-]{0,20}$")
 
 # Templates em português natural, sem plágio de metodologias fechadas e

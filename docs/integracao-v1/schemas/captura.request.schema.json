@@ -5,7 +5,7 @@
   "version": "1.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "opt_out", "access_token"],
+  "required": ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "honeypot", "opt_out", "access_token"],
   "properties": {
     "contract": {"const": "supleno.integracao.v1"},
     "submission_id": {"type": "string", "minLength": 1, "maxLength": 128},
@@ -38,6 +38,7 @@
         "origin": {"type": "string", "maxLength": 2048, "pattern": "^(local|https?://[^/?#@\\\\]+)$"}
       }
     },
+    "honeypot": {"type": "string", "maxLength": 256},
     "opt_out": {"type": "boolean", "const": false},
     "access_token": {"type": "string", "minLength": 1, "maxLength": 256}
   },

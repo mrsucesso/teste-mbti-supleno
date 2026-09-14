@@ -29,6 +29,9 @@
         utm_campaign: legado.utm_campaign || '',
         origin: legado.origem || 'local'
       },
+      // Campo explícito do contrato v1; o receptor usa-o como honeypot
+      // antes de validar/persistir qualquer dado pessoal.
+      honeypot: legado.website || legado.honeypot || '',
       opt_out: false
     };
   }

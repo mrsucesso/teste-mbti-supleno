@@ -386,7 +386,7 @@ function renderResult(code){
    imediato ao usuário — aqui a captura é opcional, então a validação só
    entra em ação se a pessoa decidir preencher e enviar o formulário. */
 const NAME_PATTERN = /^[\p{L}\p{M} '.\-]{1,100}$/u;
-const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+const EMAIL_PATTERN = /^(?=.{1,254}$)[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
 const WHATSAPP_PATTERN = /^[0-9 ()+\-]{0,20}$/;
 
 function clearLeadErrors(){

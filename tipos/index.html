@@ -276,7 +276,7 @@ function computeType(){
 /* Mesmas regras do backend (ver apps-script/Code.gs) para dar feedback
    imediato ao usuário — a validação que vale é sempre a do servidor. */
 const NAME_PATTERN = /^[\p{L}\p{M} '.\-]{1,100}$/u;
-const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+const EMAIL_PATTERN = /^(?=.{1,254}$)[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
 const WHATSAPP_PATTERN = /^[0-9 ()+\-]{0,20}$/;
 
 function clearLeadErrors(){
