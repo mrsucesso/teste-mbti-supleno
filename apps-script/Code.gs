@@ -492,9 +492,13 @@ function doPost(e) {
     // Honeypot: campo invisível no formulário que humanos nunca preenchem.
     // Bots que preenchem todos os campos automaticamente costumam cair aqui.
     // Respondemos "ok" para não sinalizar ao bot que foi filtrado.
-    const honeypot = (data.website || "").toString().trim();
+    const rawHoneypot = data.website;
+    if (typeof rawHoneypot !== "string") {
+      return isV1 ? v1ErrorResponse(v1SubmissionId, "invalid_request") : errorResponse();
+    }
+    const honeypot = rawHoneypot.trim();
     if (honeypot) {
-      return jsonResponse({ ok: true });
+      return isV1 ? v1RejectedResponse(v1SubmissionId, "honeypot") : jsonResponse({ ok: true });
     }
 
     // O endpoint v1 é público para o navegador, mas não aceita captura sem
@@ -764,6 +768,13 @@ function gerarOptoutToken(email) {
   const normalizado = (email || "").toString().trim().toLowerCase();
   const nonce = optoutNonceForEmail(normalizado);
   const props = PropertiesService.getScriptProperties();
+  const existingRaw = props.getProperty(optoutTokenPropertyKey(nonce));
+  if (existingRaw) {
+    try {
+      const existing = JSON.parse(existingRaw);
+      if (existing.email === normalizado && new Date(existing.expires_at).getTime() >= Date.now()) return nonce;
+    } catch (_) { /* registro inválido será substituído */ }
+  }
   props.setProperty(optoutTokenPropertyKey(nonce), JSON.stringify({
     email: normalizado,
     expires_at: new Date(Date.now() + OPTOUT_TOKEN_TTL_MS).toISOString(),
@@ -810,7 +821,10 @@ function optoutPropertyKey(email) {
 /** Consultado antes de aceitar recadastro e antes de qualquer envio da outbox. */
 function estaOptOut(email) {
   const props = PropertiesService.getScriptProperties();
-  return props.getProperty(optoutPropertyKey(email)) === "1";
+  const raw = props.getProperty(optoutPropertyKey(email));
+  if (!raw) return false;
+  if (raw === "1") return true;
+  try { return !!JSON.parse(raw).registered_at; } catch (_) { return false; }
 }
 
 /**
@@ -822,7 +836,7 @@ function registrarOptOut(email) {
   if (!lock.tryLock(10000)) throw new Error("não foi possível obter lock para opt-out");
   try {
     const props = PropertiesService.getScriptProperties();
-    props.setProperty(optoutPropertyKey(email), "1");
+    props.setProperty(optoutPropertyKey(email), JSON.stringify({ registered_at: new Date().toISOString() }));
     cancelarOutboxPendentePorEmail(email);
   } finally {
     lock.releaseLock();
@@ -1059,6 +1073,11 @@ function cancelarOutboxPendentePorEmail(email) {
  * decisão humana explícita via outboxMarcarComoEnviadoManualmente ou
  * outboxMarcarComoPendenteManualmente.
  */
+function timestampSeguro(valor) {
+  const timestamp = new Date(valor).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
 /** Remove PII vencida de Leads, Outbox e propriedades temporárias. */
 function purgarDadosExpirados(agora) {
   const limite = agora.getTime() - PII_RETENTION_MS;
@@ -1066,39 +1085,55 @@ function purgarDadosExpirados(agora) {
   const dataCol = LEAD_SHEET_HEADERS.indexOf("Data") + 1;
   for (let row = leads.getLastRow(); row >= 2; row--) {
     const valor = leads.getRange(row, dataCol).getValue();
-    if (valor && new Date(valor).getTime() < limite) leads.deleteRow(row);
+    const timestamp = timestampSeguro(valor);
+    if (timestamp !== null && timestamp < limite) leads.deleteRow(row);
   }
   const outbox = getOutboxSheet();
   const enqueuedCol = OUTBOX_HEADERS.indexOf("enqueued_at") + 1;
   for (let row = outbox.getLastRow(); row >= 2; row--) {
     const valor = outbox.getRange(row, enqueuedCol).getValue();
-    if (valor && new Date(valor).getTime() < limite) outbox.deleteRow(row);
+    const timestamp = timestampSeguro(valor);
+    if (timestamp !== null && timestamp < limite) outbox.deleteRow(row);
   }
   const props = PropertiesService.getScriptProperties();
   Object.keys(props.getProperties()).forEach(function (key) {
     const raw = props.getProperty(key);
     if (key.indexOf("optout_token_") === 0) {
       try {
-        if (new Date(JSON.parse(raw).expires_at).getTime() < agora.getTime()) props.deleteProperty(key);
+        const timestamp = timestampSeguro(JSON.parse(raw).expires_at);
+        if (timestamp !== null && timestamp < agora.getTime()) props.deleteProperty(key);
       } catch (_) { props.deleteProperty(key); }
+    } else if (key.indexOf("optout_") === 0) {
+      try {
+        const registered = JSON.parse(raw).registered_at;
+        const timestamp = timestampSeguro(registered);
+        if (timestamp !== null && timestamp < limite) props.deleteProperty(key);
+      } catch (_) { if (raw === "1") props.deleteProperty(key); }
+    } else if (key.indexOf("rl_email_") === 0) {
+      const bucket = Number(key.slice(key.lastIndexOf("_") + 1));
+      if (Number.isFinite(bucket) && bucket * 86400000 < limite) props.deleteProperty(key);
     } else if (key.indexOf("submission_") === 0) {
       try {
-        const finished = JSON.parse(raw).finished_at;
-        if (finished && new Date(finished).getTime() < limite) props.deleteProperty(key);
+        const state = JSON.parse(raw);
+        const reference = state.finished_at || (state.status === "processing" ? state.started_at : null);
+        const timestamp = timestampSeguro(reference);
+        if (timestamp !== null && timestamp < limite) props.deleteProperty(key);
       } catch (_) { /* estado inválido é preservado para investigação */ }
     }
   });
 }
 
 function processarOutbox() {
-  if (!OPTOUT_SECRET) {
-    Logger.log("processarOutbox: OPTOUT_SECRET não configurado; envio bloqueado até a configuração ser concluída.");
-    return { processados: 0, bloqueado: true };
-  }
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) return { processados: 0 };
   try {
+    // A purga é independente da configuração de opt-out, mas continua
+    // protegida pelo mesmo lock das transições da outbox.
     purgarDadosExpirados(new Date());
+    if (!OPTOUT_SECRET) {
+      Logger.log("processarOutbox: OPTOUT_SECRET não configurado; envio bloqueado até a configuração ser concluída.");
+      return { processados: 0, bloqueado: true };
+    }
     const sheet = getOutboxSheet();
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return { processados: 0 };

@@ -55,6 +55,11 @@ for (const value of [{code:'D'}, 'I']) {
         self.assertIn("PII_RETENTION_MS", source)
         self.assertIn("purgarDadosExpirados", source)
 
+    def test_public_privacy_policy_states_the_180_day_retention(self):
+        source = (ROOT / "privacidade/index.html").read_text(encoding="utf-8")
+        self.assertIn("purgados em até 180 dias", source)
+        self.assertNotIn("ainda precisa definir e publicar prazo de retenção", source)
+
 
 if __name__ == "__main__":
     unittest.main()

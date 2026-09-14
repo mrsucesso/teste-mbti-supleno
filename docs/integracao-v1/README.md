@@ -26,7 +26,7 @@ Estados canônicos da intenção: `pending` → `sending` → `sent`; falha ou l
 
 ## Retenção verificável
 
-Leads e Outbox são purgados após 180 dias pela função `purgarDadosExpirados`, executada pelo gatilho de `processarOutbox`; a exclusão é feita por data e de baixo para cima. Vínculos de token de opt-out expiram em 180 dias e estados de idempotência concluídos também são removidos após 180 dias. O código não mantém payload de Outbox em `PropertiesService`: ali ficam apenas cursor, supressão por hash e estados temporários.
+Leads e Outbox são purgados após 180 dias pela função `purgarDadosExpirados`, executada pelo gatilho de `processarOutbox`; a exclusão é feita por data e de baixo para cima. Vínculos de token de opt-out expiram em 180 dias, estados de idempotência antigos (inclusive `processing` sem `finished_at`) e buckets antigos de rate limit também são removidos. O código não mantém payload de Outbox em `PropertiesService`: ali ficam apenas cursor, supressão por hash e estados temporários.
 
 Códigos mínimos de erro: `invalid_request`, `consent_required`, `duplicate_payload_conflict`, `suppressed`, `temporary_failure` e `configuration_blocked`. A mensagem externa é curta e não revela stack trace, segredo ou PII. `temporary_failure` pode ser tentado novamente; conflito, consentimento e supressão não.
 

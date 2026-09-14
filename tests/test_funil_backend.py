@@ -569,5 +569,38 @@ class TestMascaramentoDeLogs(unittest.TestCase):
         self.assertNotIn("privado@example.com", saida)
 
 
+class TestRetencaoLocal(unittest.TestCase):
+    def test_token_ttl_is_capped_at_180_days_and_not_sliding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            store = FunilStore(path, optout_secret="secret", optout_token_ttl_dias=365)
+            inicio = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            token = store.gerar_optout_token("token@example.com", agora=inicio)
+            primeiro = json.loads(path.read_text(encoding="utf-8").splitlines()[0])["expires_at"]
+            store.gerar_optout_token("token@example.com", agora=inicio + timedelta(days=30))
+            segundo = json.loads(path.read_text(encoding="utf-8").splitlines()[0])["expires_at"]
+            self.assertEqual(token, store.gerar_optout_token("token@example.com", agora=inicio))
+            self.assertEqual(primeiro, segundo)
+            self.assertEqual(datetime.fromisoformat(primeiro), inicio + timedelta(days=180))
+
+    def test_loading_store_purges_old_leads_tokens_and_optouts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "leads.jsonl"
+            old = datetime(2025, 1, 1, tzinfo=timezone.utc)
+            payload = payload_base(submission_id="old", email="old@example.com")
+            payload["data_criacao"] = old.isoformat()
+            path.write_text("\n".join([
+                json.dumps(payload),
+                json.dumps({"record_type": "opt_out", "email": "gone@example.com", "created_at": old.isoformat()}),
+                json.dumps({"record_type": "optout_token", "token": "a" * 32, "email": "gone@example.com", "expires_at": old.isoformat()}),
+            ]) + "\n", encoding="utf-8")
+            store = FunilStore(path, optout_secret="secret")
+            store.purgar_dados_expirados(agora=datetime(2026, 1, 1, tzinfo=timezone.utc))
+            self.assertEqual(store.listar_leads(), [])
+            self.assertFalse(store.esta_opt_out("gone@example.com"))
+            self.assertIsNone(store.resolver_email_por_token("a" * 32, agora=datetime(2026, 1, 1, tzinfo=timezone.utc)))
+            self.assertNotIn("old@example.com", path.read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

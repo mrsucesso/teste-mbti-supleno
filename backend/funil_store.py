@@ -37,6 +37,7 @@ SANDBOX_MODE = True
 # Validade do vínculo nonce -> e-mail do token de opt-out. Generoso porque o
 # link vive dentro de e-mails já enviados (não é renovável pelo destinatário).
 OPTOUT_TOKEN_TTL_DIAS_PADRAO = 180
+PII_RETENTION_DIAS = 180
 
 # Os três produtos da família Testes Supleno (ver README > Rotas e estrutura).
 TESTES_VALIDOS = frozenset({"tipos", "estilos", "tracos"})
@@ -202,18 +203,21 @@ class FunilStore:
         self.cta_url = cta_url
         self.optout_base_url = optout_base_url
         self.optout_secret = (optout_secret or secrets.token_urlsafe(32)).encode("utf-8")
-        self.optout_token_ttl_dias = optout_token_ttl_dias
+        self.optout_token_ttl_dias = min(max(int(optout_token_ttl_dias), 1), PII_RETENTION_DIAS)
         self._lock = threading.RLock()
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._leads: dict[str, dict] = {}
         self._opt_out_emails: set[str] = set()
+        self._opt_out_registered_at: dict[str, str] = {}
         self._optout_tokens: dict[str, dict] = {}
         self._carregar()
+        self.purgar_dados_expirados()
 
     def _carregar(self) -> None:
         self._leads = {}
         self._opt_out_emails = set()
+        self._opt_out_registered_at = {}
         self._optout_tokens = {}
         if not self.path.exists():
             return
@@ -225,7 +229,10 @@ class FunilStore:
                 registro = json.loads(linha)
                 tipo_registro = registro.get("record_type")
                 if tipo_registro == "opt_out":
-                    self._opt_out_emails.add(registro["email"].strip().lower())
+                    email = registro["email"].strip().lower()
+                    self._opt_out_emails.add(email)
+                    if registro.get("registered_at") or registro.get("created_at"):
+                        self._opt_out_registered_at[email] = registro.get("registered_at") or registro.get("created_at")
                     continue
                 if tipo_registro == "optout_token":
                     self._optout_tokens[registro["token"]] = {
@@ -342,6 +349,16 @@ class FunilStore:
         """Cria/renova o vínculo quando o chamador já mantém os locks."""
         normalizado = (email or "").strip().lower()
         nonce = _nonce_para_email(self.optout_secret, normalizado)
+        existente = self._optout_tokens.get(nonce)
+        if existente:
+            try:
+                expira_existente = datetime.fromisoformat(existente["expires_at"])
+                if expira_existente.tzinfo is None:
+                    expira_existente = expira_existente.replace(tzinfo=timezone.utc)
+                if agora < expira_existente:
+                    return nonce
+            except (KeyError, TypeError, ValueError):
+                pass
         expira_em = agora + timedelta(days=self.optout_token_ttl_dias)
         self._optout_tokens[nonce] = {
             "email": normalizado,
@@ -360,6 +377,7 @@ class FunilStore:
         with self._lock, self._lock_processo():
             self._carregar()
             self._opt_out_emails.add(email_normalizado)
+            self._opt_out_registered_at[email_normalizado] = datetime.now(timezone.utc).isoformat()
             afetados = 0
             for lead in self._leads.values():
                 if lead["email"].strip().lower() == email_normalizado and not lead["opt_out"]:
@@ -417,6 +435,7 @@ class FunilStore:
 
     def esta_opt_out(self, email: str) -> bool:
         return (email or "").strip().lower() in self._opt_out_emails
+
 
     def processar_fila(self, agora: Optional[datetime] = None) -> list:
         """Processa a fila de nutrição: envia (simulado, em sandbox) no
@@ -519,13 +538,68 @@ class FunilStore:
             resultado_texto = ", ".join(f"{chave}: {valor}" for chave, valor in resultado.items())
         else:
             resultado_texto = ""
+        nonce = _nonce_para_email(self.optout_secret, lead["email"].strip().lower())
+        token_record = self._optout_tokens.get(nonce)
+        try:
+            expira = datetime.fromisoformat(token_record["expires_at"]) if token_record else datetime.min
+            if expira.tzinfo is None:
+                expira = expira.replace(tzinfo=timezone.utc)
+        except (KeyError, TypeError, ValueError):
+            expira = datetime.min.replace(tzinfo=timezone.utc)
+        if expira <= datetime.now(timezone.utc):
+            nonce = self._gerar_optout_token_locked(lead["email"], datetime.now(timezone.utc))
         return {
             "nome": lead["nome"],
             "produto": _NOME_PRODUTO.get(lead["teste"], lead["teste"]),
             "resultado_texto": resultado_texto,
             "cta_url": self.cta_url,
-            "optout_url": f"{self.optout_base_url}/optout?token={quote(self._gerar_optout_token_locked(lead['email'], datetime.now(timezone.utc)))}",
+            "optout_url": f"{self.optout_base_url}/optout?token={quote(nonce)}",
         }
+
+    def purgar_dados_expirados(self, agora: Optional[datetime] = None) -> int:
+        """Remove leads locais e tokens vencidos pela retenção de PII."""
+        agora = agora or datetime.now(timezone.utc)
+        if agora.tzinfo is None:
+            agora = agora.replace(tzinfo=timezone.utc)
+        limite = agora - timedelta(days=PII_RETENTION_DIAS)
+        removidos = 0
+        with self._lock, self._lock_processo():
+            self._carregar()
+            for submission_id, lead in list(self._leads.items()):
+                try:
+                    criado = datetime.fromisoformat(lead["data_criacao"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if criado.tzinfo is None:
+                    criado = criado.replace(tzinfo=timezone.utc)
+                if criado < limite:
+                    del self._leads[submission_id]
+                    removidos += 1
+            for token, registro in list(self._optout_tokens.items()):
+                try:
+                    expira = datetime.fromisoformat(registro["expires_at"])
+                except (KeyError, TypeError, ValueError):
+                    del self._optout_tokens[token]
+                    continue
+                if expira.tzinfo is None:
+                    expira = expira.replace(tzinfo=timezone.utc)
+                if expira <= agora:
+                    del self._optout_tokens[token]
+                    removidos += 1
+            for email, timestamp in list(self._opt_out_registered_at.items()):
+                try:
+                    registrado = datetime.fromisoformat(timestamp)
+                except (TypeError, ValueError):
+                    continue
+                if registrado.tzinfo is None:
+                    registrado = registrado.replace(tzinfo=timezone.utc)
+                if registrado < limite:
+                    self._opt_out_registered_at.pop(email, None)
+                    self._opt_out_emails.discard(email)
+                    removidos += 1
+            if removidos:
+                self._persistir_tudo_locked()
+        return removidos
 
     def _persistir_tudo(self) -> None:
         with self._lock:
@@ -536,7 +610,10 @@ class FunilStore:
         temporario = self.path.with_name(f".{self.path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
         with temporario.open("w", encoding="utf-8") as arquivo:
             for email in sorted(self._opt_out_emails):
-                arquivo.write(json.dumps({"record_type": "opt_out", "email": email}, ensure_ascii=False))
+                registro_optout = {"record_type": "opt_out", "email": email}
+                if email in self._opt_out_registered_at:
+                    registro_optout["registered_at"] = self._opt_out_registered_at[email]
+                arquivo.write(json.dumps(registro_optout, ensure_ascii=False))
                 arquivo.write("\n")
             for token, registro in self._optout_tokens.items():
                 arquivo.write(json.dumps({

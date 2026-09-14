@@ -479,6 +479,19 @@ class TestOptOutTokenCryptography(unittest.TestCase):
         )
         self.assertIsNone(result["resolved"])
 
+    def test_existing_token_is_not_slidingly_renewed(self):
+        [result] = run_node(
+            """
+            const token = gerarOptoutToken('stable@example.com');
+            const first = JSON.parse(__store['optout_token_' + token]).expires_at;
+            const secondToken = gerarOptoutToken('stable@example.com');
+            const second = JSON.parse(__store['optout_token_' + secondToken]).expires_at;
+            dumpState({sameToken: token === secondToken, first: first, second: second});
+            """
+        )
+        self.assertTrue(result["sameToken"])
+        self.assertEqual(result["first"], result["second"])
+
     def test_malformed_token_returns_null_without_throwing(self):
         [result] = run_node(
             """
@@ -1414,6 +1427,48 @@ class TestValidationAndLockStillEnforced(unittest.TestCase):
                     % json.dumps(product_payload)
                 )
                 self.assertEqual(json.loads(result["response"]), {"ok": True})
+
+
+class TestRetentionPurge(unittest.TestCase):
+    def test_legacy_payload_without_honeypot_is_rejected(self):
+        payload = lead_payload(submission_id="legacy-without-honeypot")
+        del payload["website"]
+        [result] = run_node(
+            "dumpState({ response: doPost({ postData: { contents: JSON.stringify(%s) } }).getContent() });"
+            % json.dumps(payload)
+        )
+        self.assertEqual(json.loads(result["response"]), {"ok": False, "error": "Não foi possível processar sua solicitação."})
+
+    def test_purge_removes_old_rate_limit_optout_and_processing_records(self):
+        [result] = run_node(
+            """
+            __store['rl_email_old@example.com_20000'] = '1';
+            __store['rl_email_fresh@example.com_30000'] = '1';
+            __store['optout_old'] = JSON.stringify({registered_at: '2026-01-01T00:00:00.000Z'});
+            __store['optout_fresh'] = JSON.stringify({registered_at: '2026-09-01T00:00:00.000Z'});
+            __store['submission_old'] = JSON.stringify({status: 'processing', started_at: '2026-01-01T00:00:00.000Z'});
+            __store['submission_fresh'] = JSON.stringify({status: 'processing', started_at: '2026-09-01T00:00:00.000Z'});
+            purgarDadosExpirados(new Date('2026-09-10T00:00:00.000Z'));
+            dumpState({keys: Object.keys(__store).sort()});
+            """
+        )
+        self.assertNotIn("rl_email_old@example.com_20000", result["keys"])
+        self.assertNotIn("optout_old", result["keys"])
+        self.assertNotIn("submission_old", result["keys"])
+        self.assertIn("rl_email_fresh@example.com_30000", result["keys"])
+        self.assertIn("submission_fresh", result["keys"])
+
+    def test_purge_runs_without_optout_secret(self):
+        [result] = run_node(
+            """
+            __store['submission_old'] = JSON.stringify({status: 'processing', started_at: '2026-01-01T00:00:00.000Z'});
+            const outcome = processarOutbox();
+            dumpState({outcome: outcome, hasOld: Object.prototype.hasOwnProperty.call(__store, 'submission_old')});
+            """,
+            store={"OPTOUT_SECRET": ""},
+        )
+        self.assertFalse(result["hasOld"])
+        self.assertTrue(result["outcome"]["bloqueado"])
 
 
 if __name__ == "__main__":
