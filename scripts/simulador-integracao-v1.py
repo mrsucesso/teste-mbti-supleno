@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 CONTRACT = "supleno.integracao.v1"
 SEQUENCE = ["imediato", "d1", "d3", "d5", "d7"]
 PRODUCTS = {"tipos", "estilos", "tracos"}
-REQUIRED = {"contract", "submission_id", "product", "person", "result", "consent", "attribution"}
+REQUIRED = {"contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution"}
 ROOT_FIELDS = REQUIRED | {"scores", "opt_out"}
 ORIGIN_PII = re.compile(r"(?:@|\b\d{8,}\b)")
 

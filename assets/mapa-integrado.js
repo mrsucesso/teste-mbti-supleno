@@ -23,7 +23,10 @@
       faltam: faltam,
       dados: dados,
       tipo: dados.tipos && dados.tipos.code,
-      estilo: typeof dados.estilos === 'string' ? dados.estilos : null,
+      // Estilos gravava `{code: ...}` desde a captura v1; aceite também o
+      // formato legado string para não quebrar registros já existentes.
+      estilo: typeof dados.estilos === 'string' ? dados.estilos :
+        (dados.estilos && typeof dados.estilos.code === 'string' ? dados.estilos.code : null),
       tracos: dados.tracos || null,
       regra: 'O mapa apenas reúne os três resultados locais; não soma, hierarquiza nem transforma um resultado em diagnóstico.'
     };

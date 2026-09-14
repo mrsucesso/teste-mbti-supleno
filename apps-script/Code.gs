@@ -494,18 +494,17 @@ function doPost(e) {
       return jsonResponse({ ok: true });
     }
 
-    // Token de configuração não secreto — ver comentário em ACCESS_TOKEN.
+    // O endpoint v1 é público para o navegador, mas não aceita captura sem
+    // a defesa configurada. O token é apenas um filtro antiabuso público;
+    // rate limit, honeypot e consentimento server-side continuam obrigatórios.
+    const token = (data.token || "").toString();
     if (!ACCESS_TOKEN) {
-      if (!isV1) {
-        Logger.log("ACCESS_TOKEN ausente: rejeitando configuração insegura");
-        return errorResponse();
-      }
+      Logger.log("ACCESS_TOKEN ausente: rejeitando captura");
+      return isV1 ? v1ErrorResponse(v1SubmissionId, "unauthorized") : errorResponse();
     }
-    {
-      const token = (data.token || "").toString();
-      if (!isV1 && token !== ACCESS_TOKEN) {
-        return errorResponse();
-      }
+    if (token !== ACCESS_TOKEN) {
+      Logger.log("ACCESS_TOKEN inválido: rejeitando captura");
+      return isV1 ? v1ErrorResponse(v1SubmissionId, "unauthorized") : errorResponse();
     }
 
     const validated = validateInput(data);
@@ -529,12 +528,31 @@ function doPost(e) {
 
 function normalizeV1Input(data) {
   if (data.contract !== "supleno.integracao.v1" || !data.submission_id || !data.person || !data.result || !data.scores || !data.consent || !data.attribution || data.opt_out !== false) return null;
+  if (!hasOnlyKeys(data, ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "opt_out", "access_token"])) return null;
+  if (!hasOnlyKeys(data.person, ["name", "email", "whatsapp"]) ||
+      !hasOnlyKeys(data.result, data.product === "tipos" ? ["code", "gender"] : data.product === "estilos" ? ["code"] : ["SO", "AN", "OM", "TE", "CO"]) ||
+      !hasOnlyKeys(data.consent, ["granted", "captured_at", "purpose", "version"]) ||
+      !hasOnlyKeys(data.attribution, ["utm_source", "utm_medium", "utm_campaign", "origin"])) return null;
   if (["tipos", "estilos", "tracos"].indexOf(data.product) === -1) return null;
   if (data.consent.granted !== true || typeof data.consent.captured_at !== "string" || data.consent.purpose !== "resultado_e_sequencia_supleno" || typeof data.consent.version !== "string") return null;
   const result = data.product === "estilos" ? (data.result.code || "") : data.result;
   return { name: data.person.name, email: data.person.email, whatsapp: data.person.whatsapp || "",
     teste: data.product, resultado: result, pontuacoes: data.scores, consentimento: true,
-    submission_id: data.submission_id, website: "", token: "" };
+    submission_id: data.submission_id, website: "", token: data.access_token || "",
+    attribution: normalizeAttribution(data.attribution) };
+}
+
+function hasOnlyKeys(value, allowed) {
+  return value && typeof value === "object" && !Array.isArray(value) &&
+    Object.keys(value).every(key => allowed.indexOf(key) !== -1);
+}
+
+function normalizeAttribution(attribution) {
+  const normalized = {};
+  ["utm_source", "utm_medium", "utm_campaign", "origin"].forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(attribution, key)) normalized[key] = attribution[key];
+  });
+  return normalized;
 }
 
 function v1ErrorResponse(submissionId, code) {
@@ -564,6 +582,10 @@ function validateInput(data) {
   if (!EMAIL_PATTERN.test(email)) return null;
   if (whatsapp && !WHATSAPP_PATTERN.test(whatsapp)) return null;
   if (["tipos", "estilos", "tracos"].indexOf(teste) === -1) return null;
+  if (!validateAttribution(data.attribution || {
+    utm_source: data.utm_source || "", utm_medium: data.utm_medium || "",
+    utm_campaign: data.utm_campaign || "", origin: data.origem || "local"
+  })) return null;
   if (!validateScores(teste, data.pontuacoes)) return null;
 
   if (teste === "tipos") {
@@ -599,7 +621,25 @@ function validateInput(data) {
   } else {
     sigla = teste.toUpperCase() + "-" + code;
   }
-  return { name, email, whatsapp, code, gender, sigla, teste, resultado: data.resultado, pontuacoes: data.pontuacoes };
+  return { name, email, whatsapp, code, gender, sigla, teste, resultado: data.resultado, pontuacoes: data.pontuacoes,
+    attribution: data.attribution ? normalizeAttribution(data.attribution) : {
+      utm_source: data.utm_source || "", utm_medium: data.utm_medium || "",
+      utm_campaign: data.utm_campaign || "", origin: data.origem || "local"
+    } };
+}
+
+function validateAttribution(attribution) {
+  if (!attribution || typeof attribution !== "object" || Array.isArray(attribution) ||
+      !hasOnlyKeys(attribution, ["utm_source", "utm_medium", "utm_campaign", "origin"])) return false;
+  if (["utm_source", "utm_medium", "utm_campaign"].some(key =>
+      Object.prototype.hasOwnProperty.call(attribution, key) &&
+      (typeof attribution[key] !== "string" || attribution[key].length > (key === "utm_campaign" ? 160 : 120)))) return false;
+  if (Object.prototype.hasOwnProperty.call(attribution, "origin")) {
+    const origin = attribution.origin;
+    if (typeof origin !== "string" || origin.length > 2048 ||
+        !(/^(local|https?:\/\/[^/?#@\\]+)$/.test(origin))) return false;
+  }
+  return true;
 }
 
 function validateScores(teste, scores) {

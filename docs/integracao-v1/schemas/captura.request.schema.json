@@ -5,7 +5,7 @@
   "version": "1.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["contract", "submission_id", "product", "person", "result", "consent", "attribution"],
+  "required": ["contract", "submission_id", "product", "person", "result", "scores", "consent", "attribution", "access_token"],
   "properties": {
     "contract": {"const": "supleno.integracao.v1"},
     "submission_id": {"type": "string", "minLength": 1, "maxLength": 128},
@@ -38,6 +38,7 @@
         "origin": {"type": "string", "maxLength": 2048, "pattern": "^(local|https?://[^/?#@\\\\]+)$"}
       }
     },
-    "opt_out": {"type": "boolean", "const": false}
+    "opt_out": {"type": "boolean", "const": false},
+    "access_token": {"type": "string", "minLength": 1, "maxLength": 256}
   }
 }

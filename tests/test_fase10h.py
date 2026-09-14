@@ -22,6 +22,7 @@ class TestFase10H(unittest.TestCase):
             "product": "tipos",
             "person": {"name": "Pessoa", "email": "pessoa@example.invalid"},
             "result": {"code": "INTJ", "gender": "M"},
+            "scores": {"E": 7, "I": 0, "S": 7, "N": 0, "T": 7, "F": 0, "J": 7, "P": 0},
             "consent": {"granted": True, "captured_at": "2026-09-13T15:00:00Z", "purpose": "resultado_e_sequencia_supleno", "version": "1"},
             "attribution": {"origin": "local"},
             "opt_out": False,

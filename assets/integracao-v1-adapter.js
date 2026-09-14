@@ -14,6 +14,9 @@
       person: { name: legado.name, email: legado.email, whatsapp: legado.whatsapp || '' },
       result: result,
       scores: legado.pontuacoes || legado.scores || {},
+      // Não é segredo: funciona como filtro antiabuso complementar. A
+      // configuração permanece fora do HTML versionado.
+      access_token: legado.token || '',
       consent: {
         granted: legado.consentimento === true,
         captured_at: capturedAt,
