@@ -53,6 +53,7 @@
 
     <!-- TELA 1: INTRODUÇÃO -->
     <section id="screen-intro" class="screen active">
+      <div class="test-intro-meta"><span class="product-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M10 11h28M10 24h28M10 37h28"/><circle cx="19" cy="11" r="4"/><circle cx="31" cy="24" r="4"/><circle cx="23" cy="37" r="4"/></svg></span><span>25 afirmações · 5 dimensões · cerca de 5 minutos</span></div>
       <h1>Descubra sua tendência em cinco dimensões</h1>
       <p class="lead">Um teste com 25 afirmações originais que posicionam você em cinco dimensões contínuas de personalidade amplamente estudadas — iniciativa social, abertura a novidades, organização e método, tranquilidade emocional e consideração pelos outros. Leva cerca de 5 minutos.</p>
       <button class="btn" onclick="startQuiz()">Começar o Teste</button>
@@ -68,6 +69,7 @@
         <div class="progress-label" id="progressLabel">Afirmação 1 de 25</div>
       </div>
       <div class="q-text" id="qText" tabindex="-1">Texto da afirmação</div>
+      <p class="question-hint">Indique quanto você concorda. A próxima afirmação aparece automaticamente.</p>
       <div class="likert-scale" id="likertScale" role="radiogroup" aria-labelledby="qText"></div>
       <div class="trait-caption"><span>Discordo totalmente</span><span>Concordo totalmente</span></div>
       <div class="nav-row">

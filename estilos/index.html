@@ -52,6 +52,7 @@
 
     <!-- TELA 1: INTRODUÇÃO -->
     <section id="screen-intro" class="screen active">
+      <div class="test-intro-meta"><span class="product-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="17"/><path d="M24 7v34M7 24h34M24 24l9-9M24 24l-5 11"/><circle cx="24" cy="24" r="3"/></svg></span><span>24 perguntas · 4 estilos · cerca de 4 minutos</span></div>
       <h1>Descubra seu Estilo de Comportamento</h1>
       <p class="lead">Um teste baseado em quatro dimensões amplamente conhecidas sobre estilos de comportamento — iniciativa e decisão, comunicação e interação, cooperação e constância, e atenção a critérios. Leva cerca de 4 minutos.</p>
       <button class="btn" onclick="startQuiz()">Começar o Teste</button>
@@ -67,6 +68,7 @@
         <div class="progress-label" id="progressLabel">Pergunta 1 de 24</div>
       </div>
       <div class="q-text" id="qText" tabindex="-1">Com qual afirmação você mais se identifica?</div>
+      <p class="question-hint">Escolha a opção mais próxima de você. A próxima pergunta aparece automaticamente.</p>
       <div class="options" id="qOptions"></div>
       <div class="nav-row">
         <button class="link-btn" id="backBtn" onclick="goBack()">&larr; Voltar</button>
