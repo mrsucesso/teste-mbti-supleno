@@ -26,7 +26,8 @@ class TestPortalRoadmap(unittest.TestCase):
         for name in ("Supleno Estruturas", "Supleno Personas", "Supleno Posições"):
             card = self._card(name)
             self.assertIn('<span class="badge soon">Em breve</span>', card)
-            self.assertIn('<button class="btn secondary" type="button" disabled>Em breve</button>', card)
+            self.assertEqual(card.count("Em breve"), 1)
+            self.assertNotIn("<button", card)
             self.assertNotIn("href=", card)
 
     def test_current_products_remain_available(self):

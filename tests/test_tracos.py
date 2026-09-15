@@ -25,7 +25,7 @@ class TestBancoTracos(unittest.TestCase):
         card = PORTAL_TEXT[PORTAL_TEXT.index("<h2>Supleno Traços</h2>") - 100:]
         card = card[:card.index("</article>")]
         self.assertIn('<span class="badge live">Disponível</span>', card)
-        self.assertIn("Um teste de 25 perguntas", card)
+        self.assertIn("25 perguntas", card)
         self.assertIn('href="tracos/">Fazer o teste</a>', card)
         self.assertNotIn("Em construção", card)
         self.assertNotIn("Ver prévia", card)

@@ -21,6 +21,7 @@
 <meta name="twitter:title" content="Testes Supleno — Tipos, Estilos e Traços de Personalidade">
 <meta name="twitter:description" content="Experiências de autoconhecimento do Supleno: Supleno Tipos, Supleno Estilos e Supleno Traços.">
 <meta name="twitter:image" content="https://testes.supleno.com/assets/og/portal.svg">
+<link rel="preload" href="assets/illustrations/portal-atlas.webp" as="image" type="image/webp">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body data-produto="portal">
@@ -46,60 +47,85 @@
 
 <div class="wrap">
   <main id="conteudo">
-    <section class="hero">
-      <h1>Testes Supleno</h1>
-      <p class="lead">Uma família de experiências de autoconhecimento do Supleno. Cada teste observa um ângulo diferente de como você funciona — sem rótulos fechados, sem diagnóstico.</p>
+    <section class="hero portal-hero">
+      <img class="portal-hero-art" src="assets/illustrations/portal-atlas.webp" alt="" width="1280" height="720" fetchpriority="high">
+      <div class="portal-hero-copy">
+        <span class="portal-eyebrow">Testes Supleno</span>
+        <h1>Você não cabe em um rótulo.</h1>
+        <p class="lead">Cada teste observa uma parte diferente de como você percebe, decide, age e se relaciona. O resultado organiza a conversa, sem fechar quem você é.</p>
+        <div class="portal-hero-meta" aria-label="Resumo do portal">
+          <span><strong>3</strong> testes disponíveis</span>
+          <span><strong>77</strong> perguntas no total</span>
+          <span>Resultado imediato</span>
+        </div>
+        <a class="portal-hero-link" href="#testes">Escolher um teste <span aria-hidden="true">↓</span></a>
+      </div>
     </section>
 
-    <section class="product-grid" aria-label="Produtos da família Testes Supleno">
+    <section class="catalog-section" id="testes" aria-labelledby="testes-title">
+      <header class="section-heading">
+        <span class="section-number" aria-hidden="true">01</span>
+        <div><p>Testes disponíveis</p><h2 id="testes-title">Escolha o que você quer compreender agora.</h2></div>
+      </header>
+      <div class="product-grid product-grid-current" aria-label="Testes disponíveis">
       <article class="product-card">
-        <span class="badge live">Disponível</span>
+        <div class="product-card-top"><span class="product-icon icon-tipos" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M7 7h13v13H7zM28 7h13v13H28zM7 28h13v13H7zM28 28h13v13H28z"/><path d="M13.5 7v13M34.5 28v13"/></svg></span><span class="badge live">Disponível</span></div>
         <h2>Supleno Tipos</h2>
-        <p>Um teste de 28 perguntas que mapeia seu perfil entre 16 tipos de personalidade, com versão masculina e feminina do resultado.</p>
+        <p class="product-meta">28 perguntas · 16 tipos</p>
+        <p>Observe suas preferências de percepção e decisão e encontre uma síntese do seu perfil.</p>
         <a class="btn" href="tipos/">Fazer o teste</a>
       </article>
 
       <article class="product-card">
-        <span class="badge live">Disponível</span>
+        <div class="product-card-top"><span class="product-icon icon-estilos" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="17"/><path d="M24 7v34M7 24h34M24 24l9-9M24 24l-5 11"/><circle cx="24" cy="24" r="3"/></svg></span><span class="badge live">Disponível</span></div>
         <h2>Supleno Estilos</h2>
-        <p>Um teste de 24 perguntas que identifica seu estilo de comportamento predominante entre 4 perfis, com resultado imediato.</p>
+        <p class="product-meta">24 perguntas · 4 estilos</p>
+        <p>Identifique a maneira de agir e interagir que aparece com mais força nas suas escolhas.</p>
         <a class="btn" href="estilos/">Fazer o teste</a>
       </article>
 
       <article class="product-card">
-        <span class="badge live">Disponível</span>
+        <div class="product-card-top"><span class="product-icon icon-tracos" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M10 11h28M10 24h28M10 37h28"/><circle cx="19" cy="11" r="4"/><circle cx="31" cy="24" r="4"/><circle cx="23" cy="37" r="4"/></svg></span><span class="badge live">Disponível</span></div>
         <h2>Supleno Traços</h2>
-        <p>Um teste de 25 perguntas que organiza cinco dimensões contínuas de personalidade, com resultado imediato e sem diagnóstico.</p>
+        <p class="product-meta">25 perguntas · 5 dimensões</p>
+        <p>Veja em que intensidade cinco características aparecem nas suas respostas deste momento.</p>
         <a class="btn" href="tracos/">Fazer o teste</a>
       </article>
+      </div>
+    </section>
 
+    <section class="map-feature" aria-label="Mapa Integrado">
       <article class="product-card">
-        <span class="badge live">Disponível</span>
-        <h2>Mapa Integrado</h2>
-        <p>Reúna os resultados locais de Supleno Tipos, Supleno Estilos e Supleno Traços em uma leitura educativa, transparente e sem diagnóstico.</p>
+        <div class="map-feature-icon product-icon" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="23" cy="25" r="14"/><circle cx="41" cy="25" r="14"/><circle cx="32" cy="41" r="14"/><path d="M18 45c8-4 20-4 28 0"/></svg></div>
+        <div class="map-feature-copy"><span class="badge live">Disponível</span><p class="product-meta">Síntese dos resultados</p><h2>Mapa Integrado</h2><p>Reúna os resultados locais de Tipos, Estilos e Traços em uma leitura única, educativa e transparente.</p></div>
         <a class="btn" href="mapa/">Abrir o mapa</a>
       </article>
+    </section>
 
+    <section class="catalog-section future-section" aria-labelledby="futuros-title">
+      <header class="section-heading">
+        <span class="section-number" aria-hidden="true">02</span>
+        <div><p>Próximos testes</p><h2 id="futuros-title">Três experiências em desenvolvimento.</h2></div>
+      </header>
+      <div class="product-grid future-grid" aria-label="Próximos testes">
       <article class="product-card">
-        <span class="badge soon">Em breve</span>
+        <div class="product-card-top"><span class="product-icon icon-estruturas" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M7 15l17-8 17 8-17 8zM7 24l17 8 17-8M7 33l17 8 17-8"/></svg></span><span class="badge soon">Em breve</span></div>
         <h2>Supleno Estruturas</h2>
         <p>Uma leitura sobre traços de caráter, experiências evitadas e estratégias de proteção, com desenvolvimento próprio do Método Supleno.</p>
-        <button class="btn secondary" type="button" disabled>Em breve</button>
       </article>
 
       <article class="product-card">
-        <span class="badge soon">Em breve</span>
+        <div class="product-card-top"><span class="product-icon icon-personas" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M28 8c7 2 12 8 12 16s-5 14-12 16M20 8C13 10 8 16 8 24s5 14 12 16M20 8c4 4 5 9 5 16s-1 12-5 16"/><path d="M15 20h5M15 29c2 2 4 2 6 0M31 20h3"/></svg></span><span class="badge soon">Em breve</span></div>
         <h2>Supleno Personas</h2>
         <p>Um modelo autoral sobre as identidades que a pessoa acredita precisar sustentar e aquilo que evita parecer.</p>
-        <button class="btn secondary" type="button" disabled>Em breve</button>
       </article>
 
       <article class="product-card">
-        <span class="badge soon">Em breve</span>
+        <div class="product-card-top"><span class="product-icon icon-posicoes" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="5"/><circle cx="24" cy="8" r="4"/><circle cx="40" cy="24" r="4"/><circle cx="24" cy="40" r="4"/><circle cx="8" cy="24" r="4"/><path d="M24 19V12M29 24h7M24 29v7M19 24h-7"/></svg></span><span class="badge soon">Em breve</span></div>
         <h2>Supleno Posições</h2>
         <p>Uma leitura das posições assumidas no Quadro do Drama e dos movimentos possíveis para o Quadro do Sucesso.</p>
-        <button class="btn secondary" type="button" disabled>Em breve</button>
       </article>
+      </div>
     </section>
   </main>
 
