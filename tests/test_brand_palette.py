@@ -42,6 +42,11 @@ class TestBrandPalette(unittest.TestCase):
         self.assertTrue(artwork.is_file())
         self.assertGreater(artwork.stat().st_size, 20_000)
 
+    def test_desktop_navigation_never_wraps(self):
+        styles = (ROOT / "assets/style.css").read_text(encoding="utf-8")
+        self.assertRegex(styles, r"\.site-nav \.nav-brand\{[^}]*flex:0 0 auto")
+        self.assertRegex(styles, r"\.nav-links\{[^}]*flex:0 0 auto[^}]*flex-wrap:nowrap")
+
 
 if __name__ == "__main__":
     unittest.main()

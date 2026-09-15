@@ -45,6 +45,19 @@ class TestPublicBuild(unittest.TestCase):
                 self.assertIn("SANDBOX_MODE: true", config)
                 self.assertNotIn("config.example.js", config)
 
+    def test_build_versions_shared_stylesheet_with_its_content_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "public"
+            result = self.run_build(output)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            digest = hashlib.sha256((output / "assets/style.css").read_bytes()).hexdigest()[:12]
+            pages = sorted(output.rglob("*.html"))
+            self.assertGreater(len(pages), 60)
+            for page in pages:
+                content = page.read_text(encoding="utf-8")
+                if "assets/style.css" in content:
+                    self.assertIn(f"assets/style.css?v={digest}", content, str(page))
+
     def test_manifest_hashes_match_built_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "public"

@@ -94,7 +94,7 @@ footer.bottom{text-align:center; margin-top:22px; font-size:12px; color:var(--in
 
 .site-nav{width:100vw; max-width:none; margin:0 0 34px; padding:15px max(16px,calc((100vw - 1120px)/2)); display:flex; align-items:center;
   justify-content:space-between; gap:16px; position:relative; background:var(--green-950);}
-.site-nav .nav-brand{display:flex; flex-direction:column; text-decoration:none; line-height:1.2;}
+.site-nav .nav-brand{display:flex; flex:0 0 auto; flex-direction:column; text-decoration:none; line-height:1.2;}
 .site-nav .nav-brand strong{font-size:15px; font-weight:800; letter-spacing:.04em; color:#fff;}
 .site-nav .nav-brand span{font-size:11px; color:#C7D8CC;}
 .nav-toggle{display:none; background:none; border:1.5px solid var(--green-500); border-radius:10px; width:44px; height:44px;
@@ -102,8 +102,8 @@ footer.bottom{text-align:center; margin-top:22px; font-size:12px; color:var(--in
 .nav-toggle .bar{display:block; width:20px; height:2px; background:#fff; position:relative;}
 .nav-toggle .bar::before, .nav-toggle .bar::after{content:""; position:absolute; left:0; width:20px; height:2px; background:#fff;}
 .nav-toggle .bar::before{top:-6px;} .nav-toggle .bar::after{top:6px;}
-.nav-links{display:flex; align-items:center; gap:6px; list-style:none; margin:0; padding:0; flex-wrap:wrap;}
-.nav-links a{display:inline-block; padding:9px 14px; border-radius:999px; font-size:13.5px; font-weight:600; white-space:nowrap;
+.nav-links{display:flex; flex:0 0 auto; align-items:center; gap:4px; list-style:none; margin:0; padding:0; flex-wrap:nowrap;}
+.nav-links a{display:inline-block; padding:9px 10px; border-radius:999px; font-size:13.5px; font-weight:600; white-space:nowrap;
   color:#D8E5DC; text-decoration:none; border:1.5px solid transparent; transition:background-color .15s ease, border-color .15s ease, color .15s ease, transform .15s ease;}
 .nav-links a:hover{color:#fff; border-color:var(--green-500);}
 .nav-links a[aria-current="page"]{color:var(--green-950); border-color:#fff; background:#fff;}

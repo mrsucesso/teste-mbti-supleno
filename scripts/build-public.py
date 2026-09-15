@@ -68,6 +68,20 @@ def copy_tree(source: Path, destination: Path) -> None:
             shutil.copyfile(path, target)
 
 
+def version_stylesheet_references(output: Path) -> str:
+    """Versiona o CSS compartilhado para invalidar caches de navegador."""
+    stylesheet = output / "assets" / "style.css"
+    digest = hashlib.sha256(stylesheet.read_bytes()).hexdigest()[:12]
+    reference = "assets/style.css"
+    versioned = f"{reference}?v={digest}"
+    for page in sorted(output.rglob("*.html")):
+        content = page.read_text(encoding="utf-8")
+        updated = content.replace(reference, versioned)
+        if updated != content:
+            page.write_text(updated, encoding="utf-8")
+    return digest
+
+
 def build(output: Path) -> dict[str, str]:
     output = _validate_output(output)
     if output.exists():
@@ -87,6 +101,8 @@ def build(output: Path) -> dict[str, str]:
         target = output / product / "config.js"
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(example, target)
+
+    version_stylesheet_references(output)
 
     files = {}
     for path in sorted(output.rglob("*")):
