@@ -32,10 +32,10 @@ class TestFase6(unittest.TestCase):
             self.assertIn('META_PIXEL_ID: ""', text)
 
     def test_og_assets_and_metadata(self):
-        for name in ("portal", "tipos", "estilos", "tracos"):
-            asset = ROOT / "assets" / "og" / f"{name}.svg"
+        for name in ("portal", "tipos", "estilos", "tracos", "mapa"):
+            asset = ROOT / "assets" / "og" / f"{name}.jpg"
             self.assertTrue(asset.exists())
-            self.assertIn("1200", asset.read_text(encoding="utf-8"))
+            self.assertTrue(asset.read_bytes().startswith(b"\xff\xd8"))
         for path in (ROOT / "index.html", ROOT / "tipos/index.html", ROOT / "estilos/index.html", ROOT / "tracos/index.html"):
             self.assertIn('property="og:image"', path.read_text(encoding="utf-8"))
 
@@ -45,7 +45,7 @@ class TestFase6(unittest.TestCase):
         for path in pages:
             text = path.read_text(encoding="utf-8")
             self.assertIn("../../assets/funil-analytics.js", text)
-            self.assertIn("../../assets/og/tipos.svg", text)
+            self.assertIn("https://testes.supleno.com/assets/og/tipos.jpg", text)
 
 
 if __name__ == "__main__":

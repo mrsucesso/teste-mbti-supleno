@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -57,6 +58,23 @@ class TestPublicBuild(unittest.TestCase):
                 content = page.read_text(encoding="utf-8")
                 if "assets/style.css" in content:
                     self.assertIn(f"assets/style.css?v={digest}", content, str(page))
+
+    def test_build_versions_open_graph_images_with_content_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "public"
+            result = self.run_build(output)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            pages = sorted(output.rglob("*.html"))
+            for image in sorted((output / "assets/og").glob("*.jpg")):
+                digest = hashlib.sha256(image.read_bytes()).hexdigest()[:12]
+                reference = f"https://testes.supleno.com/assets/og/{image.name}"
+                consumers = [page for page in pages if reference in page.read_text(encoding="utf-8")]
+                self.assertTrue(consumers, image.name)
+                for page in consumers:
+                    content = page.read_text(encoding="utf-8")
+                    suffixes = re.findall(rf'{re.escape(reference)}([^"<]*)', content)
+                    self.assertTrue(suffixes, str(page))
+                    self.assertEqual({f"?v={digest}"}, set(suffixes), str(page))
 
     def test_manifest_hashes_match_built_files(self):
         with tempfile.TemporaryDirectory() as tmp:

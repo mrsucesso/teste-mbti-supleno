@@ -48,6 +48,18 @@ python3 scripts/build-public.py --output public && python3 scripts/smoke-public.
 
 O builder remove o diretório de saída antes de copiar a allowlist e grava `manifest.json` com SHA-256 dos arquivos incluídos. O smoke test serve o pacote em `127.0.0.1`, confirma Content-Type das rotas principais e verifica a página 404 sem acessar serviço externo.
 
+## SEO e compartilhamento social
+
+A arquitetura canônica de SEO, a matriz de indexação, os metadados obrigatórios e o procedimento de manutenção estão em [`docs/seo/README.md`](docs/seo/README.md).
+
+As imagens Open Graph ficam em `assets/og/`, no formato JPEG `1200×630`, e são geradas por:
+
+```bash
+python3 scripts/generate-og-images.py
+```
+
+Durante o build, cada referência de OG recebe automaticamente uma query string com o hash do próprio arquivo. Isso invalida caches sociais quando uma imagem é atualizada sem alterar sua URL-base.
+
 ## Configuração necessária antes da produção
 
 1. Implantar uma cópia de `apps-script/Code.gs` como backend compartilhado. O mesmo endpoint valida os contratos distintos de Tipos, Estilos e Traços.

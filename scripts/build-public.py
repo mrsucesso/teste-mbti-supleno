@@ -82,6 +82,23 @@ def version_stylesheet_references(output: Path) -> str:
     return digest
 
 
+def version_open_graph_references(output: Path) -> dict[str, str]:
+    """Versiona OGs rasterizadas para evitar previews sociais obsoletos."""
+    digests = {}
+    pages = sorted(output.rglob("*.html"))
+    for image in sorted((output / "assets" / "og").glob("*.jpg")):
+        digest = hashlib.sha256(image.read_bytes()).hexdigest()[:12]
+        digests[image.name] = digest
+        reference = f"https://testes.supleno.com/assets/og/{image.name}"
+        versioned = f"{reference}?v={digest}"
+        for page in pages:
+            content = page.read_text(encoding="utf-8")
+            updated = content.replace(reference, versioned)
+            if updated != content:
+                page.write_text(updated, encoding="utf-8")
+    return digests
+
+
 def build(output: Path) -> dict[str, str]:
     output = _validate_output(output)
     if output.exists():
@@ -103,6 +120,7 @@ def build(output: Path) -> dict[str, str]:
         shutil.copyfile(example, target)
 
     version_stylesheet_references(output)
+    version_open_graph_references(output)
 
     files = {}
     for path in sorted(output.rglob("*")):
