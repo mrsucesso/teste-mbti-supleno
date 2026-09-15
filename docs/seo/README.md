@@ -23,9 +23,9 @@ As URLs indexáveis são:
 - `/mapa/` — Mapa Integrado Supleno;
 - `/metodologia/` — metodologia e limitações;
 - `/privacidade/` — privacidade e modo seguro;
-- `/tipos/resultados/{tipo}-{m|f}.html` — 32 resultados completos de Supleno Tipos.
+- `/tipos/resultados/{tipo}-{m|f}` — 32 resultados completos de Supleno Tipos.
 
-As URLs `/resultados/*.html` são stubs de compatibilidade. Elas possuem `noindex`, redirecionam para `/tipos/resultados/*.html` e apontam a canonical para a página final. A página `404.html` também usa `noindex`.
+As URLs públicas `/resultados/{tipo}-{m|f}` são stubs de compatibilidade. Elas possuem `noindex`, redirecionam para `/tipos/resultados/{tipo}-{m|f}` e apontam a canonical para a página final. Os arquivos-fonte continuam com extensão `.html`, mas o Cloudflare Pages publica a rota final sem extensão. A página `404.html` também usa `noindex`.
 
 A canonical declarada, a URL incluída no sitemap e a URL pública final devem ser iguais. O Google trata redirecionamentos e `rel="canonical"` como sinais fortes, enquanto a inclusão no sitemap funciona como sinal complementar.[2]
 
@@ -141,10 +141,11 @@ Confirmar no pacote `public/`:
 3. nenhuma página indexável referencia `.svg` em OG ou Twitter;
 4. URLs de imagem são absolutas e versionadas pelo hash correto;
 5. canonical e `og:url` usam `https://testes.supleno.com`;
-6. sitemap contém exatamente as canonicals indexáveis;
-7. stubs e 404 continuam com `noindex`;
-8. rota inexistente responde HTTP 404 real;
-9. imagem e metadados são lidos de volta no deployment e no domínio oficial.
+6. resultados usam URLs canônicas sem `.html`, evitando canonicals que redirecionam;
+7. sitemap contém exatamente as canonicals indexáveis;
+8. stubs e 404 continuam com `noindex`;
+9. rota inexistente responde HTTP 404 real;
+10. imagem e metadados são lidos de volta no deployment e no domínio oficial.
 
 ## 10. Manutenção
 

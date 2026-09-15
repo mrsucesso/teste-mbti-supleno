@@ -1498,7 +1498,7 @@ function sendResultEmail(name, email, code, gender, teste, resultado, pontuacoes
   const desc = p["desc_" + gk];
   const strengths = p.strengths.map(s => `<li>${escapeHtml(s)}</li>`).join("");
   const growth = p.growth.map(s => `<li>${escapeHtml(s)}</li>`).join("");
-  const fullPageUrl = `${SITE_BASE_URL}/tipos/resultados/${code.toLowerCase()}-${gk}.html`;
+  const fullPageUrl = `${SITE_BASE_URL}/tipos/resultados/${code.toLowerCase()}-${gk}`;
   const safeName = escapeHtml(name);
 
   const subject = `Seu resultado: ${typeName} (${code}-${gender})`;

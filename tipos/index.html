@@ -406,7 +406,7 @@ function showResult(code, g){
   document.getElementById('resLetters').textContent = `${code}-${g}`;
   document.getElementById('resName').textContent = name;
   document.getElementById('resDesc').textContent = desc;
-  document.getElementById('resFullLink').href = `resultados/${code.toLowerCase()}-${gk}.html`;
+  document.getElementById('resFullLink').href = `resultados/${code.toLowerCase()}-${gk}`;
   showScreen('screen-result');
   SuplenoProgresso.salvar('tipos', {ordem: order, respostas: answers, progresso: QUESTIONS.length, resultado: {code: code, gender: g}});
   SuplenoFunil.trackResultado('tipos', {resultado: code, genero: g});

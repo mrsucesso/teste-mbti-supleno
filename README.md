@@ -22,7 +22,7 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 
 - `/` (`index.html`) — portal da família, com Supleno Tipos, Supleno Estilos, Supleno Traços e o Mapa Integrado
 - `/tipos/` (`tipos/index.html`) — introdução, 28 perguntas, captura e resultado resumido
-- `/tipos/resultados/{tipo}-{m|f}.html` — 32 páginas de resultado
+- `/tipos/resultados/{tipo}-{m|f}` — 32 páginas de resultado (arquivos-fonte `.html`)
 - `/estilos/` — teste educativo de 24 perguntas, com resultado básico imediato e captura opcional posterior
 - `/tracos/` — teste educativo de 25 afirmações, cinco dimensões contínuas, resultado imediato e captura opcional posterior
 - `/mapa/` — combinação local dos três resultados, com links para concluir o que falta e controles para apagar, imprimir e compartilhar
@@ -225,11 +225,11 @@ A produção planejada ficará em (domínio raiz, sem subpath):
 
 - Portal: `https://testes.supleno.com/`
 - Supleno Tipos: `https://testes.supleno.com/tipos/`
-- Resultados: `https://testes.supleno.com/tipos/resultados/{tipo}-{m|f}.html`
+- Resultados: `https://testes.supleno.com/tipos/resultados/{tipo}-{m|f}`
 - Supleno Estilos: `https://testes.supleno.com/estilos/`
 - Supleno Traços: `https://testes.supleno.com/tracos/`
 
-Os caminhos antigos `/resultados/*.html` permanecem como stubs de compatibilidade e apontam para `/tipos/resultados/*.html`. O arquivo `index.html` da raiz agora é o portal; a antiga experiência do teste está em `/tipos/`.
+Os caminhos antigos `/resultados/{tipo}-{m|f}` permanecem como stubs de compatibilidade e apontam para `/tipos/resultados/{tipo}-{m|f}`. O arquivo `index.html` da raiz agora é o portal; a antiga experiência do teste está em `/tipos/`.
 
 A publicação em produção, a alteração de DNS e qualquer comunicação externa exigem aprovação de Mauricio.
 

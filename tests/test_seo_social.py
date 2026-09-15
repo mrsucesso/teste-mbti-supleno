@@ -80,12 +80,29 @@ class TestSeoSocial(unittest.TestCase):
         url = f"{BASE}/assets/og/tipos.jpg"
         for path in pages:
             page = path.read_text(encoding="utf-8")
+            canonical = f"{BASE}/tipos/resultados/{path.stem}"
+            self.assertIn(f'<link rel="canonical" href="{canonical}">', page, path.name)
+            self.assertIn(f'<meta property="og:url" content="{canonical}">', page, path.name)
             self.assertIn(f'<meta property="og:image" content="{url}">', page, path.name)
             self.assertIn('<meta property="og:image:type" content="image/jpeg">', page, path.name)
             self.assertIn('<meta name="twitter:card" content="summary_large_image">', page, path.name)
             self.assertIn(f'<meta name="twitter:image" content="{url}">', page, path.name)
             self.assertIn('<meta name="twitter:image:alt"', page, path.name)
             self.assertNotIn(".svg", page, path.name)
+
+    def test_type_result_links_match_cloudflare_clean_urls(self):
+        app = (ROOT / "tipos/index.html").read_text(encoding="utf-8")
+        self.assertIn('`resultados/${code.toLowerCase()}-${gk}`', app)
+        self.assertNotIn('`resultados/${code.toLowerCase()}-${gk}.html`', app)
+        backend = (ROOT / "apps-script/Code.gs").read_text(encoding="utf-8")
+        self.assertIn('`${SITE_BASE_URL}/tipos/resultados/${code.toLowerCase()}-${gk}`', backend)
+        self.assertNotIn('`${SITE_BASE_URL}/tipos/resultados/${code.toLowerCase()}-${gk}.html`', backend)
+        for path in sorted((ROOT / "resultados").glob("*.html")):
+            page = path.read_text(encoding="utf-8")
+            destination = f"/tipos/resultados/{path.stem}"
+            self.assertIn(f"https://testes.supleno.com{destination}", page, path.name)
+            self.assertIn(f"url=..{destination}", page, path.name)
+            self.assertNotIn(f"{destination}.html", page, path.name)
 
     def test_sitemap_matches_indexable_canonicals(self):
         sitemap = ET.parse(ROOT / "sitemap.xml")
