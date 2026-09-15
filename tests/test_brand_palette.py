@@ -46,6 +46,7 @@ class TestBrandPalette(unittest.TestCase):
         styles = (ROOT / "assets/style.css").read_text(encoding="utf-8")
         self.assertRegex(styles, r"\.site-nav \.nav-brand\{[^}]*flex:0 0 auto")
         self.assertRegex(styles, r"\.nav-links\{[^}]*flex:0 0 auto[^}]*flex-wrap:nowrap")
+        self.assertNotRegex(styles, r'body\[data-produto="portal"\] \.site-nav\{[^}]*max-width')
 
 
 if __name__ == "__main__":

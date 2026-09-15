@@ -197,7 +197,6 @@ body:is([data-produto="tipos"],[data-produto="estilos"],[data-produto="tracos"])
 /* Portal editorial de autoconhecimento */
 body[data-produto="portal"]{padding-top:0; background:var(--paper);}
 body[data-produto="portal"] .wrap{max-width:1120px;}
-body[data-produto="portal"] .site-nav{max-width:1120px;}
 .portal-hero{position:relative; min-height:430px; max-width:1120px; margin:0 auto 72px; overflow:hidden; border-radius:28px;
   background:var(--panel); border:1px solid rgba(22,55,54,.12); box-shadow:0 24px 70px rgba(43,36,32,.12); text-align:left; isolation:isolate;}
 .portal-hero::after{content:""; position:absolute; inset:0; background:linear-gradient(90deg,var(--paper) 0%,rgba(251,250,247,.98) 43%,rgba(251,250,247,.7) 56%,rgba(251,250,247,0) 74%); z-index:-1;}
