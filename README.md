@@ -7,7 +7,8 @@ O Supleno Tipos possui 28 perguntas, 16 tipos e páginas de resultado com varia�
 ## Identidade do produto
 
 - **Portal:** `https://testes.supleno.com`
-- **Teste:** `https://testes.supleno.com/tipos`
+- **Testes publicados:** Supleno Tipos, Supleno Estilos e Supleno Traços
+- **Integração local:** Mapa Integrado Supleno
 - **Marca:** Supleno
 - **Objetivo:** aquisição, reaquecimento e segmentação de leads do Supleno
 
@@ -38,6 +39,17 @@ Este projeto pertence exclusivamente ao Supleno. Não misturar domínios, textos
 
 A produção é servida pelo projeto Cloudflare Pages `testes-supleno`, no domínio `https://testes.supleno.com`. O GitHub mantém a fonte e o histórico; o deploy é manual e deve partir da `main` validada.
 
+### Estado validado em produção
+
+- **Commit vigente:** `b20f566bd33dc68f55f4199c52c67a51d509a00e`.
+- **Deployment imutável:** `https://64fc364e.testes-supleno.pages.dev`.
+- **Domínios ativos:** `https://testes.supleno.com` e `https://testes-supleno.pages.dev`.
+- **Cobertura SEO:** 39 URLs indexáveis, cinco imagens Open Graph e sitemap canônico.
+- **Resultados de Tipos:** URLs públicas sem `.html`; a versão com extensão redireciona permanentemente para a rota limpa.
+- **Validação:** 274 testes aprovados em Python 3.8 e Python 3.11, além de validação editorial, sintaxe do Apps Script, build, smoke e revisão independente.
+- **Integrações externas:** webhook, banco, planilha, envio de e-mail/WhatsApp, Analytics e Pixel permanecem desligados.
+- **Operação externa pendente:** envio e acompanhamento do sitemap no Google Search Console.
+
 Não publique a raiz inteira do repositório. O pacote público contém somente `index.html`, `404.html`, `robots.txt`, `sitemap.xml`, `assets/`, `resultados/`, `tipos/`, `estilos/`, `tracos/`, `mapa/`, `privacidade/` e `metodologia/`. Durante o empacotamento, cada `config.example.js` seguro é copiado para `config.js`; `backend/`, `tests/`, `apps-script/`, `.git/` e `.github/` ficam fora do deploy.
 
 Para construir e validar o pacote localmente em um único comando:
@@ -60,13 +72,13 @@ python3 scripts/generate-og-images.py
 
 Durante o build, cada referência de OG recebe automaticamente uma query string com o hash do próprio arquivo. Isso invalida caches sociais quando uma imagem é atualizada sem alterar sua URL-base.
 
-## Configuração necessária antes da produção
+## Configuração necessária para ativar integrações externas
 
 1. Implantar uma cópia de `apps-script/Code.gs` como backend compartilhado. O mesmo endpoint valida os contratos distintos de Tipos, Estilos e Traços.
 2. Informar essa URL publicada em `WEBHOOK_URL` no `config.js` local de cada produto (a partir de seu `config.example.js`). Sem URL, todos permanecem no modo seguro e não transmitem dados.
 3. Confirmar `CTA_URL` e `SITE_BASE_URL` no frontend e no backend.
 4. Configurar `OPTOUT_SECRET` em Script Properties e o gatilho de tempo de `processarOutbox` (ver "Opt-out", "Fila de envio (outbox)" e "Retenção"). Sem os dois, nenhum e-mail de resultado é enviado.
-5. Criar as imagens e substituir todos os espaços reservados.
+5. Preservar os assets visuais versionados e revisar qualquer substituição antes de publicar.
 6. Configurar origem, UTM, consentimento e métricas.
 7. Executar `python3 scripts/validate-content.py`.
 8. Homologar o fluxo completo com dados sintéticos.
@@ -214,14 +226,9 @@ git diff --check
 - Supleno Estilos é inspirado apenas nas quatro dimensões amplamente conhecidas sobre estilos de comportamento. Não é instrumento oficial, licenciado ou clínico.
 - Supleno Traços é uma experiência original inspirada apenas em cinco dimensões amplamente estudadas sobre personalidade. Não é instrumento oficial, licenciado, clínico ou validado cientificamente.
 
-## URLs provisórias e finais
+## URLs públicas e compatibilidade
 
-As URLs provisórias do protótipo GitHub Pages são:
-
-- `https://mrsucesso.github.io/teste-mbti-supleno/`
-- `https://mrsucesso.github.io/teste-mbti-supleno/tipos/`
-
-A produção planejada ficará em (domínio raiz, sem subpath):
+A produção usa o domínio raiz, sem subpath de repositório:
 
 - Portal: `https://testes.supleno.com/`
 - Supleno Tipos: `https://testes.supleno.com/tipos/`
@@ -231,12 +238,13 @@ A produção planejada ficará em (domínio raiz, sem subpath):
 
 Os caminhos antigos `/resultados/{tipo}-{m|f}` permanecem como stubs de compatibilidade e apontam para `/tipos/resultados/{tipo}-{m|f}`. O arquivo `index.html` da raiz agora é o portal; a antiga experiência do teste está em `/tipos/`.
 
-A publicação em produção, a alteração de DNS e qualquer comunicação externa exigem aprovação de Mauricio.
+O GitHub Pages legado é apenas histórico e não deve ser usado como canonical, `og:url`, sitemap ou destino de divulgação. Novas publicações em produção, alterações de DNS e comunicações externas exigem aprovação de Mauricio.
 
 ## Fonte canônica
 
 As decisões de produto, linguagem e cronograma ficam no Notion:
 
 - **Testes Supleno — Produto, Cronograma e Governança Editorial**
+- **SEO técnico e Open Graph — Testes Supleno:** `https://app.notion.com/p/SEO-t-cnico-e-Open-Graph-Testes-Supleno-3dc1f0496cc98141b0b8f2ea5c46a569`
 
 Em caso de divergência: **Notion decide → GitHub implementa → produção valida.**

@@ -12,6 +12,16 @@ Este documento é a fonte operacional de SEO do portal `https://testes.supleno.c
 
 Não usar os aliases `pages.dev` ou o endereço legado do GitHub Pages como canonical, `og:url`, URL do sitemap ou URL pública de imagem.
 
+### Estado validado em produção
+
+- **Commit vigente:** `b20f566bd33dc68f55f4199c52c67a51d509a00e`.
+- **Deployment imutável:** `https://64fc364e.testes-supleno.pages.dev`.
+- **Domínio oficial validado:** `https://testes.supleno.com`.
+- **Inventário:** 39 URLs indexáveis e cinco imagens Open Graph.
+- **Qualidade:** 274 testes aprovados em Python 3.8 e Python 3.11, com build, smoke, sintaxe do Apps Script e revisão independente aprovados.
+- **Comportamento legado:** URLs de resultado com `.html` respondem `308` para a rota canônica sem extensão.
+- **Pendente fora do repositório:** envio do sitemap, inspeção de URLs e acompanhamento de cobertura no Google Search Console.
+
 ## 2. Arquitetura indexável
 
 As URLs indexáveis são:
